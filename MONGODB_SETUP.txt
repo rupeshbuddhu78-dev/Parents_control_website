@@ -1,0 +1,5 @@
+Render Environment:
+MONGODB_URI=<set this value only in the Render environment variables; do not commit the connection string to source>
+
+After deploy: npm install && restart
+Look for: MongoDB connected

