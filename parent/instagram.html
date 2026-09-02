@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram Message Viewer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="socket.io.min.js"></script>
+    <!-- Local socket.io.min.js – fixes CDN timeout -->
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-primary: #f5f5f5;
+            --text-secondary: #a8a8a8;
+            --border-color: #262626;
+            --blue-accent: #0095f6;
+            --input-bg: #262626;
+            --incoming-bubble: #262626;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 500px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .header {
+            height: 60px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 16px;
+            border-bottom: 1px solid var(--border-color);
+            z-index: 10;
+            background: var(--bg-color);
+        }
+
+        .header-title { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
+        .header-icons { font-size: 24px; display: flex; gap: 20px; }
+        .header-icons i { cursor: pointer; }
+
+        .bottom-nav {
+            height: 50px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background: var(--bg-color);
+            font-size: 24px;
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            z-index: 20;
+        }
+
+        .nav-item { cursor: pointer; color: var(--text-secondary); transition: 0.2s; position: relative; }
+        .nav-item.active { color: var(--text-primary); }
+        .badge { position: absolute; top: -2px; right: -2px; background: #ff3040; width: 8px; height: 8px; border-radius: 50%; display: none; }
+
+        .page {
+            flex: 1;
+            overflow-y: auto;
+            display: none;
+            padding-bottom: 60px;
+        }
+        .page.active-page { display: block; }
+
+        .search-bar {
+            padding: 10px 16px;
+            position: relative;
+        }
+        .search-bar input {
+            width: 100%;
+            background: #262626;
+            border: none;
+            padding: 8px 15px 8px 36px;
+            border-radius: 10px;
+            color: white;
+            outline: none;
+            font-size: 14px;
+        }
+        .search-bar i {
+            position: absolute;
+            left: 28px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .section-label {
+            padding: 0 16px;
+            margin-bottom: 10px;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .dm-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            cursor: pointer;
+        }
+        .dm-item:active { background-color: #121212; }
+
+        .avatar {
+            width: 50px; height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+            padding: 2px;
+            flex-shrink: 0;
+            margin-right: 14px;
+        }
+        .avatar-img {
+            width: 100%; height: 100%;
+            background: #000;
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 20px; font-weight: bold; color: #fff; border: 2px solid #000;
+        }
+
+        .dm-content { flex: 1; overflow: hidden; }
+        .dm-name { font-size: 14px; color: var(--text-primary); font-weight: 400; margin-bottom: 2px; }
+        .dm-preview { font-size: 13px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .dm-time { font-size: 12px; color: var(--text-secondary); margin-left: 10px; }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .act-icon { font-size: 24px; margin-right: 15px; width: 30px; text-align: center; }
+        .icon-heart { color: #ff3040; }
+        .icon-comment { color: #0095f6; }
+        .icon-follow { color: #8e44ad; }
+
+        .act-text { font-size: 14px; flex: 1; line-height: 1.4; }
+        .act-text strong { font-weight: 600; }
+        .act-time { font-size: 12px; color: var(--text-secondary); display: block; margin-top: 2px; }
+
+        .chat-window {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; z-index: 50;
+            display: none; flex-direction: column;
+        }
+        .chat-window.open { display: flex; }
+
+        .chat-header {
+            height: 60px; padding: 0 16px;
+            display: flex; align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            background: black;
+        }
+        .back-btn { font-size: 22px; margin-right: 20px; cursor: pointer; }
+
+        .chat-messages {
+            flex: 1; padding: 20px;
+            overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+        }
+
+        .msg-sender {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 2px;
+            font-weight: 600;
+        }
+
+        .msg-bubble {
+            max-width: 75%;
+            padding: 10px 14px;
+            border-radius: 22px;
+            font-size: 14px;
+            line-height: 1.4;
+            background: var(--incoming-bubble);
+            color: var(--text-primary);
+            align-self: flex-start;
+            position: relative;
+        }
+
+        .msg-bubble.outgoing {
+            background: var(--blue-accent);
+            align-self: flex-end;
+        }
+
+        .msg-time { font-size: 10px; color: #777; margin-top: 4px; display: block; }
+        .msg-bubble.outgoing .msg-time { color: rgba(255,255,255,0.6); }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 30px;
+            color: var(--text-secondary);
+        }
+        .empty-state i { font-size: 48px; margin-bottom: 16px; display: block; color: #333; }
+        .empty-state p { font-size: 14px; line-height: 1.5; }
+
+        .loading { text-align: center; margin-top: 50px; color: #555; }
+
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+        .status-dot.connected { background: #4caf50; }
+        .status-dot.disconnected { background: #555; }
+
+        .export-btn {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .export-btn:hover { border-color: var(--blue-accent); color: var(--blue-accent); }
+
+        .chat-export-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 18px;
+            cursor: pointer;
+            margin-left: auto;
+        }
+        .chat-export-btn:hover { color: var(--blue-accent); }
+
+        .highlight { background: rgba(0, 149, 246, 0.25); border-radius: 3px; padding: 0 1px; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+
+        <div class="header" id="mainHeader">
+            <div class="header-title" id="pageTitle">instagram <i class="fas fa-chevron-down" style="font-size: 12px;"></i></div>
+            <div class="header-icons">
+                <i class="fas fa-sync-alt" onclick="manualRefresh()" style="font-size: 18px;" title="Refresh"></i>
+                <button class="export-btn" onclick="exportAllData()" title="Export all data">
+                    <i class="fas fa-download" style="font-size: 12px;"></i> Export
+                </button>
+            </div>
+        </div>
+
+        <div id="page-inbox" class="page active-page">
+            <div class="search-bar">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Search DMs..." oninput="handleSearch(this.value)">
+            </div>
+            <div class="section-label">Messages</div>
+            <div id="dmList">
+                <div class="loading">Loading Chats...</div>
+            </div>
+        </div>
+
+        <div id="page-activity" class="page">
+            <div style="padding: 15px 16px; font-weight: 700; font-size: 20px;">Activity</div>
+            <div id="activityList">
+                <div class="loading">No recent activity</div>
+            </div>
+        </div>
+
+        <div class="bottom-nav">
+            <div class="nav-item active" onclick="switchTab('inbox', this)">
+                <i class="fab fa-facebook-messenger"></i>
+            </div>
+            <div class="nav-item" onclick="switchTab('activity', this)">
+                <i class="far fa-heart"></i>
+                <div class="badge" id="activityBadge"></div>
+            </div>
+            <div class="nav-item">
+                <div style="width:24px; height:24px; background:grey; border-radius:50%;"></div>
+            </div>
+        </div>
+
+        <div class="chat-window" id="chatWindow">
+            <div class="chat-header">
+                <i class="fas fa-arrow-left back-btn" onclick="closeChat()"></i>
+                <div class="avatar" style="width:30px; height:30px; margin-right:10px;">
+                    <div class="avatar-img" id="chatAvatar" style="font-size: 14px;">?</div>
+                </div>
+                <div style="font-weight: 600; font-size: 16px;" id="chatName">Username</div>
+                <button class="chat-export-btn" onclick="exportChat()" title="Export this chat">
+                    <i class="fas fa-download"></i>
+                </button>
+            </div>
+            <div class="chat-messages" id="chatMessages"></div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- AUTH CHECK ---
+        (function(){
+            var t = localStorage.getItem("access_token");
+            if(!t){ window.location.href='/login'; return; }
+            try {
+                var u = JSON.parse(localStorage.getItem("user") || "{}");
+                if(!u.email){ window.location.href='/login'; }
+            } catch(e){ window.location.href='/login'; }
+        })();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const deviceId = (urlParams.get('id') || localStorage.getItem('monitoring_id') || '').toString().trim();
+        const SERVER_URL = 'https://parents-control-website1.onrender.com';
+        const CHAT_CONTACTS_URL = `${SERVER_URL}/api/chat_contacts?childId=${encodeURIComponent(deviceId)}&app=instagram`;
+        const CHAT_MESSAGES_URL = `${SERVER_URL}/api/chats?childId=${encodeURIComponent(deviceId)}&app=instagram&contact=`;
+        const NOTIFICATIONS_URL = `${SERVER_URL}/api/get-data/${deviceId}/notifications?app=instagram`;
+        const STORAGE_KEY = `instagram_data_${deviceId || 'default'}`;
+
+        let chatContacts = [];
+        let chatMessagesCache = {};
+        let groupedChats = {};
+        let activityLogs = [];
+        let activeChatUser = null;
+        let searchQuery = '';
+        let socket = null;
+        let useChatApi = true;
+        let contactsRequestInFlight = false;
+        let notificationsRequestInFlight = false;
+
+        const ACTIVITY_KEYWORDS = [
+            "liked your", "liked a message", "commented:", "started following",
+            "mentioned you", "tagged you", "replied to your"
+        ];
+
+        const MEDIA_LABELS = {
+            'photo': '[📷 Photo]',
+            'image': '[📷 Photo]',
+            'voice': '[🎤 Voice]',
+            'audio': '[🎤 Voice]',
+            'video': '[🎥 Video]',
+            'location': '[📍 Location]',
+            'story': '[📷 Story]',
+            'reel': '[🎥 Reel]'
+        };
+
+        function init() {
+            // Always start clean from DATABASE only — localStorage caused deleted junk to reappear
+            try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+            groupedChats = {};
+            activityLogs = [];
+            chatContacts = [];
+            chatMessagesCache = {};
+            fetchChatContacts();
+            // Notifications only for Activity tab — NOT mixed into DM list
+            fetchNotificationsFallback();
+            // Mongo/API is the source of truth; Socket.IO only accelerates updates
+            // when the dashboard happens to be open. Polling keeps the page current
+            // after the child uploaded while this page was closed.
+            setInterval(fetchChatContacts, 5000);
+            setInterval(fetchNotificationsFallback, 30000);
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) fetchChatContacts();
+            });
+            window.addEventListener('focus', () => fetchChatContacts());
+            connectSocket();
+        }
+
+        function connectSocket() {
+            if (!deviceId) return;
+            try {
+                socket = io(SERVER_URL, { transports: ['websocket', 'polling'] });
+                socket.on('connect', () => {
+                    socket.emit('join', deviceId);
+                });
+                socket.on('chat_update', (data) => {
+                    handleChatUpdate(data);
+                });
+                socket.on('disconnect', () => {});
+            } catch (e) { console.error('Socket error', e); }
+        }
+
+        function handleChatUpdate(data) {
+            if (!data || (data.device_id && String(data.device_id).toUpperCase() !== String(deviceId).toUpperCase())) return;
+            if (data.app && String(data.app).toLowerCase() !== 'instagram') return;
+            const contact = data.contact || data.contactName || data.chat_with || data.conversation;
+            if (contact) {
+                delete chatMessagesCache[contact];
+                fetchChatMessages(contact, true);
+            }
+            if (!data.app || data.app === 'instagram') fetchChatContacts();
+        }
+
+        async function fetchChatContacts() {
+            if (!deviceId) return;
+            try {
+                if (contactsRequestInFlight) return;
+                contactsRequestInFlight = true;
+                const res = await fetch(CHAT_CONTACTS_URL, { cache: 'no-store' });
+                if (!res.ok) throw new Error('Chat API unavailable');
+                const data = await res.json();
+                useChatApi = true;
+                chatContacts = Array.isArray(data) ? data : (data.contacts || data.data || []);
+                chatContacts = chatContacts.filter(c => !c.app || String(c.app).toLowerCase() === 'instagram');
+                processChatContacts();
+            } catch (e) {
+                useChatApi = false;
+            } finally {
+                contactsRequestInFlight = false;
+            }
+        }
+
+        function isStrictInstagramRecord(row) {
+            if (!row) return false;
+            const app = String(row.app || '').toLowerCase().trim();
+            const pkg = String(row.packageName || row.package || '').toLowerCase().trim();
+            // The API is already app-scoped. Accept legacy Instagram rows that omit
+            // packageName, while rejecting any explicit non-Instagram app/package.
+            if (app && app !== 'instagram') return false;
+            if (pkg && pkg !== 'com.instagram.android' && pkg !== 'instagram') return false;
+            return app === 'instagram' || pkg === 'com.instagram.android' || pkg === 'instagram';
+        }
+
+        function isBadIgContact(name) {
+            if (!name) return true;
+            const n = String(name).trim();
+            if (!n || n.length > 80) return true;
+            const l = n.toLowerCase();
+            return l === 'unknown' || l === 'instagram' || l === 'you' || l === 'your story'
+                || l === 'messages' || l === 'message' || l === 'chats' || l === 'activity'
+                || l.startsWith('online') || l === 'photo' || l === 'video'
+                || l === 'whatsapp' || l.includes('necessary');
+        }
+
+        function isBadIgPreview(text) {
+            if (!text) return false;
+            const l = String(text).toLowerCase();
+            // Chat-list style pollution from other apps
+            if (/\d{1,2}:\d{2}\s?(am|pm)/i.test(text) && text.length < 80) {
+                // e.g. "Vishal Mithalachal 9:55 am Oo" — list preview leak
+                if ((text.match(/\s/g) || []).length >= 3 && /\d{1,2}:\d{2}/.test(text)) return true;
+            }
+            return l === 'photo' || l === 'video' || l === 'new message' || l === 'archived';
+        }
+
+        function processChatContacts() {
+            let tempChats = {};
+            chatContacts.forEach(contact => {
+                const name = contact.conversation || contact.name || contact.contact || contact.username || contact.threadName || '';
+                if (isBadIgContact(name)) return;
+                let preview = contact.lastMessage || contact.preview || contact.snippet || '';
+                if (isBadIgPreview(preview)) preview = '';
+                const time = contact.timestamp || contact.lastTime || contact.postTime || Date.now();
+                const msgCount = contact.count || contact.messageCount || contact.unread || 0;
+
+                tempChats[name] = {
+                    name: name,
+                    preview: formatMediaLabel(preview),
+                    timestamp: parseInt(time),
+                    messageCount: msgCount,
+                    raw: contact
+                };
+            });
+
+            // Replace entirely from API — do not merge old local junk
+            groupedChats = {};
+            Object.keys(tempChats).forEach(name => {
+                groupedChats[name] = tempChats[name];
+            });
+
+            saveState();
+            renderInbox();
+
+            if (activeChatUser) {
+                fetchChatMessages(activeChatUser, true);
+            }
+        }
+
+        async function fetchChatMessages(contact, forceRefresh) {
+            if (!deviceId || !contact) return;
+            if (!forceRefresh && chatMessagesCache[contact]) {
+                renderChatFromCache(contact);
+                return;
+            }
+            try {
+                const res = await fetch(`${CHAT_MESSAGES_URL}${encodeURIComponent(contact)}`);
+                if (!res.ok) throw new Error('Messages fetch failed');
+                const data = await res.json();
+                const rawMessages = Array.isArray(data) ? data : (data.messages || data.data || []);
+                const messages = rawMessages.filter(isStrictInstagramRecord);
+                chatMessagesCache[contact] = messages;
+                saveState();
+                renderChatFromCache(contact);
+            } catch (e) {
+                console.error('Fetch messages error', e);
+                renderChatFromCache(contact);
+            }
+        }
+
+        function renderChatFromCache(contact) {
+            const container = document.getElementById('chatMessages');
+            container.innerHTML = '';
+            const messages = chatMessagesCache[contact] || [];
+
+            if (messages.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>No messages in this conversation yet.</p></div>';
+                return;
+            }
+
+            const sorted = [...messages].sort((a, b) => {
+                const tA = parseInt(a.timestamp || a.postTime || a.time || 0);
+                const tB = parseInt(b.timestamp || b.postTime || b.time || 0);
+                return tA - tB;
+            });
+
+            sorted.forEach(msg => {
+                const text = formatMediaLabel(msg.text || msg.message || msg.content || '');
+                const sender = msg.sender || msg.from || msg.author || contact;
+                // Direction is authoritative. Do not infer side from message text,
+                // sender labels, CSS position, or loosely truthy legacy flags.
+                const dir = String(msg.direction || '').trim().toLowerCase();
+                const isOutgoing = dir === 'out' || dir === 'outgoing' || dir === 'sent';
+                const time = msg.timestamp || msg.postTime || msg.time || Date.now();
+
+                const wrapper = document.createElement('div');
+                wrapper.style.alignSelf = isOutgoing ? 'flex-end' : 'flex-start';
+                wrapper.style.maxWidth = '75%';
+
+                const senderEl = document.createElement('div');
+                senderEl.className = 'msg-sender';
+                senderEl.textContent = sender;
+                senderEl.style.textAlign = isOutgoing ? 'right' : 'left';
+
+                const bubble = document.createElement('div');
+                bubble.className = 'msg-bubble' + (isOutgoing ? ' outgoing' : '');
+                bubble.innerHTML = `${escapeHtml(text)}<span class="msg-time">${formatTime(parseInt(time))}</span>`;
+
+                wrapper.appendChild(senderEl);
+                wrapper.appendChild(bubble);
+                container.appendChild(wrapper);
+            });
+
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function fetchNotificationsFallback() {
+            if (!deviceId) return;
+            try {
+                if (notificationsRequestInFlight) return;
+                notificationsRequestInFlight = true;
+                const res = await fetch(NOTIFICATIONS_URL, { cache: 'no-store' });
+                const data = await res.json();
+                const instaData = data.filter(d => {
+                    const pkg = String(d.packageName || d.package || d.pkg || '').toLowerCase();
+                    const appName = String(d.appName || '').toLowerCase();
+                    return pkg === 'com.instagram.android' || pkg === 'instagram';
+                });
+                processNotifications(instaData);
+            } catch (e) { console.error('Notification fallback error', e); }
+            finally { notificationsRequestInFlight = false; }
+        }
+
+        function processNotifications(data) {
+            let tempActivity = [];
+            let fallbackChats = {};
+
+            data.forEach(item => {
+                const text = (item.text || '').toLowerCase();
+                const title = item.title || 'Instagram User';
+                const isActivity = ACTIVITY_KEYWORDS.some(key => text.includes(key));
+
+                if (isActivity) {
+                    tempActivity.push(item);
+                } else {
+                    if (!fallbackChats[title]) fallbackChats[title] = [];
+                    fallbackChats[title].push(item);
+                }
+            });
+
+            activityLogs = tempActivity;
+            activityLogs.sort((a, b) => b.postTime - a.postTime);
+
+            // Do NOT put notification titles into DM list (causes WhatsApp/story junk)
+            // Activity tab only
+            saveState();
+            renderActivity();
+
+            if (activeChatUser && !useChatApi) {
+                renderChatFromCache(activeChatUser);
+            }
+        }
+
+        function renderInbox() {
+            const list = document.getElementById('dmList');
+            list.innerHTML = '';
+
+            let entries = Object.values(groupedChats);
+
+            if (searchQuery) {
+                const q = searchQuery.toLowerCase();
+                entries = entries.filter(e => {
+                    const name = (e.name || '').toLowerCase();
+                    const preview = (e.preview || '').toLowerCase();
+                    return name.includes(q) || preview.includes(q);
+                });
+            }
+
+            entries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            if (entries.length === 0) {
+                if (searchQuery) {
+                    list.innerHTML = `<div class="empty-state"><i class="fas fa-search"></i><p>No results for "${escapeHtml(searchQuery)}"</p></div>`;
+                } else {
+                    list.innerHTML = `<div class="empty-state"><i class="fab fa-facebook-messenger"></i><p>No DMs captured yet</p></div>`;
+                }
+                return;
+            }
+
+            entries.forEach(entry => {
+                const name = entry.name || 'Unknown';
+                const preview = entry.preview || '';
+                const timeStr = entry.timestamp ? formatTime(entry.timestamp) : '';
+
+                const div = document.createElement('div');
+                div.className = 'dm-item';
+                div.onclick = () => openChat(name);
+
+                let displayPreview = escapeHtml(preview);
+                if (searchQuery) {
+                    const regex = new RegExp(`(${escapeRegex(searchQuery)})`, 'gi');
+                    displayPreview = displayPreview.replace(regex, '<span class="highlight">$1</span>');
+                }
+
+                let displayName = escapeHtml(name);
+                if (searchQuery) {
+                    const regex = new RegExp(`(${escapeRegex(searchQuery)})`, 'gi');
+                    displayName = displayName.replace(regex, '<span class="highlight">$1</span>');
+                }
+
+                div.innerHTML = `
+                    <div class="avatar">
+                        <div class="avatar-img">${name.charAt(0).toUpperCase()}</div>
+                    </div>
+                    <div class="dm-content">
+                        <div class="dm-name">${displayName}</div>
+                        <div class="dm-preview">${displayPreview} <span class="dm-time">&middot; ${timeStr}</span></div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function renderActivity() {
+            const list = document.getElementById('activityList');
+            const badge = document.getElementById('activityBadge');
+
+            list.innerHTML = '';
+
+            if (activityLogs.length > 0) badge.style.display = 'block';
+            else badge.style.display = 'none';
+
+            if (activityLogs.length === 0) {
+                list.innerHTML = `<div class="loading">No recent notifications</div>`;
+                return;
+            }
+
+            activityLogs.forEach(log => {
+                let iconClass = 'icon-heart fa-heart';
+                const txt = (log.text || '').toLowerCase();
+                if (txt.includes('comment')) { iconClass = 'icon-comment fa-comment'; }
+                else if (txt.includes('follow')) { iconClass = 'icon-follow fa-user-plus'; }
+
+                const div = document.createElement('div');
+                div.className = 'activity-item';
+                div.innerHTML = `
+                    <div class="act-icon"><i class="fas ${iconClass}"></i></div>
+                    <div class="act-text">
+                        <strong>${escapeHtml(log.title || '')}</strong> ${escapeHtml(log.text || '')}
+                        <span class="act-time">${formatTime(log.postTime)}</span>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function openChat(user) {
+            activeChatUser = user;
+            document.getElementById('chatWindow').classList.add('open');
+            document.getElementById('chatName').innerText = user;
+            document.getElementById('chatAvatar').innerText = user.charAt(0).toUpperCase();
+            document.getElementById('chatMessages').innerHTML = '<div class="loading">Loading messages...</div>';
+
+            if (useChatApi) {
+                fetchChatMessages(user, false);
+            } else {
+                renderChatFromCache(user);
+            }
+        }
+
+        function closeChat() {
+            activeChatUser = null;
+            document.getElementById('chatWindow').classList.remove('open');
+        }
+
+        function handleSearch(query) {
+            searchQuery = query.trim();
+            renderInbox();
+        }
+
+        function formatMediaLabel(text) {
+            if (!text) return '';
+            const lower = text.toLowerCase().trim();
+            for (const [key, label] of Object.entries(MEDIA_LABELS)) {
+                if (lower.includes(key)) return label;
+            }
+            return text;
+        }
+
+        function formatTime(ms) {
+            if (!ms) return '';
+            const date = new Date(parseInt(ms));
+            if (isNaN(date.getTime())) return '';
+            const now = new Date();
+            if (now.getDate() === date.getDate() && now.getMonth() === date.getMonth() && now.getFullYear() === date.getFullYear()) {
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+            return date.toLocaleDateString();
+        }
+
+        function switchTab(tabName, el) {
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            el.classList.add('active');
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
+            document.getElementById(`page-${tabName}`).classList.add('active-page');
+            const titles = { 'inbox': 'Direct', 'activity': 'Activity' };
+            document.getElementById('pageTitle').innerHTML = (titles[tabName] || 'Instagram') + ' <i class="fas fa-chevron-down" style="font-size: 12px;"></i>';
+        }
+
+        function manualRefresh() {
+            fetchChatContacts();
+            fetchNotificationsFallback();
+        }
+
+        function saveState() {
+            // Intentionally NOT writing chats to localStorage — source of truth is Mongo/API only
+        }
+
+        function exportAllData() {
+            const exportObj = {
+                exportDate: new Date().toISOString(),
+                deviceId: deviceId,
+                contacts: chatContacts,
+                messages: chatMessagesCache,
+                activity: activityLogs
+            };
+            downloadJson(exportObj, `instagram_export_${deviceId || 'all'}_${Date.now()}.json`);
+        }
+
+        function exportChat() {
+            if (!activeChatUser) return;
+            const messages = chatMessagesCache[activeChatUser] || [];
+            const exportObj = {
+                exportDate: new Date().toISOString(),
+                deviceId: deviceId,
+                contact: activeChatUser,
+                messages: messages
+            };
+            downloadJson(exportObj, `instagram_chat_${activeChatUser}_${Date.now()}.json`);
+        }
+
+        function downloadJson(data, filename) {
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function escapeRegex(str) {
+            return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        init();
+    </script>
+</body>
+</html>

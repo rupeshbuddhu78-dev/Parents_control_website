@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Screenshots Only</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* --- THEME VARIABLES --- */
+        :root {
+            /* DEFAULT PINK/LIGHT THEME */
+            --bg-color: #fdf4ff;
+            --bg-gradient: linear-gradient(180deg, #fdf4ff 0%, #eef5ff 100%);
+            --glass-bg: #ffffff;
+            --glass-border: rgba(209, 82, 204, 0.2);
+            --text-main: #333333;
+            --text-sub: #888888;
+            --accent: #d152cc; /* Pink for light mode */
+            --card-shadow: 0 6px 18px rgba(0,0,0,0.04);
+            --badge-bg: rgba(255, 255, 255, 0.9);
+            --tab-active-bg: linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%);
+            --tab-active-text: #fff;
+        }
+
+        body.dark-mode {
+            /* DARK THEME */
+            --bg-color: #0f0f0f;
+            --bg-gradient: linear-gradient(45deg, #000000, #1a1a1a);
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --text-main: #ffffff;
+            --text-sub: #aaaaaa;
+            --accent: #00f3ff; /* Blue for screenshots in Dark Mode */
+            --card-shadow: none;
+            --badge-bg: rgba(0, 0, 0, 0.8);
+            --tab-active-bg: rgba(0, 243, 255, 0.15);
+            --tab-active-text: #00f3ff;
+        }
+
+        /* --- GLOBAL STYLES --- */
+        * { box-sizing: border-box; }
+        body { 
+            background-color: var(--bg-color); 
+            background-image: var(--bg-gradient); 
+            color: var(--text-main); 
+            font-family: 'Segoe UI', sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            min-height: 100vh; 
+            transition: background 0.4s ease, color 0.4s ease;
+        }
+
+        /* HEADER */
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; max-width: 1200px; margin-left: auto; margin-right: auto;}
+        .icon-btn { 
+            background: var(--glass-bg); border: 1px solid var(--glass-border); 
+            color: var(--accent); padding: 10px 15px; border-radius: 12px; 
+            cursor: pointer; text-decoration: none; font-size: 1.1rem; 
+            box-shadow: var(--card-shadow); transition: 0.3s;
+        }
+        .icon-btn:active { transform: scale(0.95); }
+        .page-title { font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); } 
+        
+        /* TABS */
+        .tabs-container { display: flex; gap: 15px; margin-bottom: 15px; background: var(--glass-bg); padding: 8px; border-radius: 15px; box-shadow: var(--card-shadow); border: 1px solid var(--glass-border); max-width: 1200px; margin-left: auto; margin-right: auto;}
+        .tab-btn { flex: 1; padding: 12px; border: none; background: transparent; color: var(--text-sub); font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 10px; transition: 0.3s; }
+        .tab-btn.active { background: var(--tab-active-bg); color: var(--tab-active-text); border: 1px solid var(--accent); }
+        .tab-btn.inactive:hover { background: var(--glass-border); color: var(--text-main); }
+
+        /* CONTROL BAR (Sort & Refresh) */
+        .controls { display: flex; justify-content: center; margin-bottom: 25px; flex-wrap: wrap; gap: 10px; }
+        .btn-sort { 
+            background: var(--glass-bg); border: 1px solid var(--accent); 
+            color: var(--accent); padding: 10px 20px; border-radius: 20px; 
+            font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; 
+            box-shadow: var(--card-shadow); transition: 0.2s; 
+        }
+        .btn-sort:active { transform: scale(0.95); background: var(--accent); color: #fff; }
+
+        /* 🔥 RESPONSIVE GRID FOR LAPTOP & MOBILE 🔥 */
+        .gallery-container { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); /* Mobile me 2, Laptop me multiple */
+            gap: 15px; 
+            padding-bottom: 20px; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+        }
+        
+        .img-card { background: #000; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid var(--glass-border); height: 280px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: var(--card-shadow); width: 100%; }
+        
+        /* Object-fit: contain (Taaki Screenshot Kate Nahi, Pura Dikhe) */
+        .img-card img { width: 100%; height: 100%; object-fit: contain; }
+        
+        .time-badge { position: absolute; bottom: 0; width: 100%; background: var(--badge-bg); color: var(--accent); font-size: 0.75rem; padding: 8px; text-align: center; font-weight: bold; backdrop-filter: blur(5px); }
+
+        /* LOADING & STATUS */
+        .loader-container { text-align: center; margin-top: 50px; }
+        .loader { border: 3px solid var(--glass-border); border-top: 3px solid var(--accent); border-radius: 50%; width: 40px; height: 40px; animation: spin 0.8s linear infinite; margin: 0 auto 15px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .status-msg { text-align: center; color: var(--text-sub); margin-top: 50px; font-size: 0.9rem; line-height: 1.5; }
+        .load-more-btn { background: var(--glass-bg); color: var(--text-main); border: 1px solid var(--accent); padding: 10px 30px; border-radius: 20px; display: block; margin: 20px auto; cursor: pointer; font-weight: bold; box-shadow: var(--card-shadow); }
+
+        /* MODAL */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; }
+        .modal img { max-width: 95%; max-height: 85vh; object-fit: contain; }
+        .modal-actions { margin-top: 20px; display: flex; gap: 15px; }
+        .action-btn { background: #333; color: #fff; padding: 10px 25px; border-radius: 25px; text-decoration: none; border: 1px solid #555; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <a href="javascript:history.back()" class="icon-btn"><i class="fa-solid fa-arrow-left"></i></a>
+        <div class="page-title">Screenshots</div>
+        <button class="icon-btn" onclick="toggleTheme()" id="themeBtn">
+            <i class="fa-solid fa-moon"></i>
+        </button> 
+    </div>
+
+    <div class="tabs-container">
+        <button class="tab-btn inactive" onclick="navigateTo('camera.html')">
+            <i class="fa-solid fa-eye"></i> Spy Cam
+        </button>
+        <button class="tab-btn active">
+            <i class="fa-solid fa-mobile-screen"></i> Screenshots Only
+        </button>
+    </div>
+
+    <div class="controls">
+        <button id="sortBtn" class="btn-sort" onclick="toggleSort()">
+            <i class="fas fa-sort-amount-down"></i> Sort: Newest
+        </button>
+        <button class="btn-sort" onclick="location.reload()">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+    </div>
+
+    <div id="loadingArea" class="loader-container">
+        <div class="loader"></div>
+        <div style="color: var(--accent); font-weight: bold;">Loading Screenshots...</div>
+    </div>
+    
+    <div id="emptyState" class="status-msg" style="display: none;">
+        <i class="fa-solid fa-folder-open" style="font-size: 2rem; margin-bottom: 10px; color: var(--accent);"></i><br>
+        No Screenshots found yet.
+    </div>
+    
+    <div class="gallery-container" id="galleryGrid"></div>
+    
+    <button id="loadMoreBtn" class="load-more-btn" onclick="fetchNextPage()" style="display: none;">Load More</button>
+
+    <div id="imageModal" class="modal" onclick="if(event.target === this) closeModal()">
+        <img id="fullImage" src="">
+        <div class="modal-actions">
+            <a id="downloadLink" href="#" target="_blank" class="action-btn"><i class="fa-solid fa-download"></i> Download</a>
+            <button onclick="closeModal()" class="action-btn">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // --- AUTH CHECK ---
+        (function(){
+            var t = localStorage.getItem("access_token");
+            if(!t){ window.location.href='/login'; return; }
+            try {
+                var u = JSON.parse(localStorage.getItem("user") || "{}");
+                if(!u.email){ window.location.href='/login'; }
+            } catch(e){ window.location.href='/login'; }
+        })();
+
+        const API_BASE = 'https://parents-control-website1.onrender.com'; 
+        const urlParams = new URLSearchParams(window.location.search);
+        const DEVICE_ID = urlParams.get('id') || localStorage.getItem('monitoring_id');
+        const FOLDER = (urlParams.get('folder') || 'screenshot').replace(/[^a-zA-Z0-9_-]/g,'') || 'screenshot';
+        
+        let allFilesData = [];
+        let nextCursor = null;
+        let isLoading = false;
+        let isNewestFirst = true;
+
+        // ==========================================
+        // 1. THEME TOGGLE LOGIC
+        // ==========================================
+        function toggleTheme() {
+            const body = document.body;
+            const themeBtnIcon = document.querySelector('#themeBtn i');
+            
+            body.classList.toggle('dark-mode');
+            
+            if (body.classList.contains('dark-mode')) {
+                themeBtnIcon.classList.replace('fa-moon', 'fa-sun');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                themeBtnIcon.classList.replace('fa-sun', 'fa-moon');
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        if(localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+            const themeBtnIcon = document.querySelector('#themeBtn i');
+            if (themeBtnIcon) themeBtnIcon.classList.replace('fa-moon', 'fa-sun');
+        }
+
+        // ==========================================
+        // 2. NAVIGATION
+        // ==========================================
+        function navigateTo(page) {
+            if(DEVICE_ID) window.location.href = `${page}?id=${DEVICE_ID}`;
+            else window.location.href = page;
+        }
+
+        // ==========================================
+        // 3. FAST FETCH API 
+        // ==========================================
+        window.onload = function() {
+            if(!DEVICE_ID) {
+                document.getElementById('loadingArea').style.display = 'none';
+                return alert("Device ID Missing!");
+            }
+            fetchFiles(true);
+        };
+
+        function fetchFiles(isReset = false) {
+            if (isLoading) return;
+            isLoading = true;
+
+            const loadingArea = document.getElementById('loadingArea');
+            if(isReset) loadingArea.style.display = 'block';
+            document.getElementById('emptyState').style.display = 'none';
+
+            let url = `${API_BASE}/api/folder-list/${DEVICE_ID}/${FOLDER}?limit=100`; 
+            if (nextCursor && !isReset) url += `&next_cursor=${nextCursor}`;
+
+            fetch(url)
+            .then(res => {
+                if(!res.ok) throw new Error("API failed");
+                return res.json();
+            })
+            .then(data => {
+                loadingArea.style.display = 'none';
+                isLoading = false;
+                
+                let newFiles = (data.photos || []).map(p => typeof p === "string" ? p : (p.url||"")).filter(Boolean);
+                nextCursor = data.next_cursor || null;
+                
+                document.getElementById('loadMoreBtn').style.display = nextCursor ? 'block' : 'none';
+
+                if(isReset) allFilesData = newFiles;
+                else allFilesData = [...allFilesData, ...newFiles];
+
+                allFilesData = [...new Set(allFilesData)]; // Remove duplicates
+                renderGallery();
+            })
+            .catch(e => {
+                console.error("Fetch Error:", e);
+                isLoading = false;
+                loadingArea.style.display = 'none';
+                document.getElementById('emptyState').style.display = 'block';
+                document.getElementById('emptyState').innerHTML = "Server sleeping or network issue. <br>Please click Refresh button.";
+            });
+        }
+
+        function fetchNextPage() {
+            if(nextCursor && !isLoading) fetchFiles(false);
+        }
+
+        function toggleSort() {
+            isNewestFirst = !isNewestFirst;
+            const btn = document.getElementById('sortBtn');
+
+            if (isNewestFirst) {
+                btn.innerHTML = `<i class="fas fa-sort-amount-down"></i> Sort: Newest`;
+            } else {
+                btn.innerHTML = `<i class="fas fa-sort-amount-up"></i> Sort: Oldest`;
+            }
+
+            renderGallery();
+        }
+
+        function renderGallery() {
+            const grid = document.getElementById('galleryGrid');
+            grid.innerHTML = ''; 
+
+            if(allFilesData.length === 0) {
+                document.getElementById('emptyState').style.display = 'block';
+                document.getElementById('emptyState').innerText = "No Screenshots found yet.";
+                return;
+            }
+
+            let displayList = [...allFilesData];
+            if (!isNewestFirst) {
+                displayList.reverse();
+            }
+
+            const fragment = document.createDocumentFragment();
+
+            displayList.forEach(url => {
+                if(!url) return;
+                
+                // FAST THUMBNAIL
+                let fastThumbnailUrl = url;
+                if(url.includes('/upload/')) {
+                    fastThumbnailUrl = url.replace('/upload/', '/upload/w_300,q_auto:low/');
+                }
+
+                const div = document.createElement('div');
+                div.className = 'img-card';
+                div.onclick = () => openModal(url);
+                div.innerHTML = `
+                    <img src="${fastThumbnailUrl}" loading="lazy" onerror="this.src='https://via.placeholder.com/150?text=Error'">
+                    <div class="time-badge">SCREENSHOT</div>
+                `;
+                fragment.appendChild(div);
+            });
+            
+            grid.appendChild(fragment);
+        }
+
+        function openModal(url) {
+            document.getElementById('fullImage').src = url;
+            document.getElementById('downloadLink').href = url;
+            document.getElementById('imageModal').style.display = 'flex';
+        }
+        function closeModal() { document.getElementById('imageModal').style.display = 'none'; }
+    </script>
+
+</body>
+</html>

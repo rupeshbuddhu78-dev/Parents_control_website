@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* PLACEHOLDER - styles will be filled */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #0a0a0c; color: #fff; min-height: 100vh; }
+        .sidebar { position: fixed; left: 0; top: 0; width: 240px; height: 100vh; background: #111118; border-right: 1px solid rgba(255,255,255,0.06); padding: 20px 0; z-index: 100; }
+        .sidebar-header { padding: 0 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 10px; }
+        .sidebar-header h2 { font-size: 1.1rem; font-weight: 800; background: linear-gradient(to right, #00d2ff, #3a7bd5); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .sidebar-header p { font-size: 0.7rem; color: #666; margin-top: 4px; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; cursor: pointer; transition: all 0.2s; color: #888; font-weight: 600; font-size: 0.85rem; }
+        .nav-item:hover, .nav-item.active { background: rgba(0, 210, 255, 0.08); color: #00d2ff; }
+        .nav-item i { width: 20px; text-align: center; }
+        .main-content { margin-left: 240px; padding: 20px; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 15px 20px; background: #16161a; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); }
+        .top-bar h1 { font-size: 1.3rem; font-weight: 800; }
+        .btn-logout { background: rgba(255, 59, 48, 0.15); color: #ff4757; border: none; padding: 8px 16px; border-radius: 10px; font-weight: 700; cursor: pointer; font-family: inherit; font-size: 0.8rem; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px; }
+        .stat-card { background: #16161a; border-radius: 16px; padding: 20px; border: 1px solid rgba(255,255,255,0.05); }
+        .stat-card .stat-label { font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+        .stat-card .stat-value { font-size: 2rem; font-weight: 800; margin-top: 8px; }
+        .stat-card .stat-value.blue { color: #00d2ff; }
+        .stat-card .stat-value.green { color: #00ff88; }
+        .stat-card .stat-value.red { color: #ff4757; }
+        .stat-card .stat-value.purple { color: #b337f1; }
+        .panel { background: #16161a; border-radius: 16px; padding: 20px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .panel-header h3 { font-size: 1rem; font-weight: 700; }
+        .search-input { background: #1e1e26; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px 14px; color: #fff; font-family: inherit; font-size: 0.85rem; outline: none; width: 250px; }
+        .search-input:focus { border-color: #00d2ff; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 10px 12px; font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        td { padding: 12px; font-size: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        tr:hover td { background: rgba(255,255,255,0.02); }
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; }
+        .badge-active { background: rgba(0, 255, 136, 0.1); color: #00ff88; }
+        .badge-suspended { background: rgba(255, 71, 87, 0.1); color: #ff4757; }
+        .badge-banned { background: rgba(255, 71, 87, 0.2); color: #ff4757; }
+        .action-btn { background: none; border: 1px solid rgba(255,255,255,0.1); color: #888; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 0.75rem; font-weight: 600; transition: all 0.2s; margin-right: 4px; }
+        .action-btn:hover { border-color: #00d2ff; color: #00d2ff; }
+        .action-btn.danger:hover { border-color: #ff4757; color: #ff4757; }
+        .section { display: none; }
+        .section.active { display: block; }
+        @media (max-width: 768px) { .sidebar { width: 60px; } .sidebar-header h2, .sidebar-header p, .nav-item span { display: none; } .main-content { margin-left: 60px; } }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2><i class="fa-solid fa-shield-halved"></i> Admin</h2>
+            <p>Control Center</p>
+        </div>
+        <div class="nav-item active" onclick="showSection('dashboard')"><i class="fa-solid fa-chart-line"></i><span>Dashboard</span></div>
+        <div class="nav-item" onclick="showSection('parents')"><i class="fa-solid fa-users"></i><span>Parents</span></div>
+        <div class="nav-item" onclick="showSection('devices')"><i class="fa-solid fa-mobile-screen"></i><span>Devices</span></div>
+        <div class="nav-item" onclick="showSection('plans')"><i class="fa-solid fa-tags"></i><span>Plans</span></div>
+        <div class="nav-item" onclick="showSection('subscriptions')"><i class="fa-solid fa-crown"></i><span>Subscriptions</span></div>
+        <div class="nav-item" onclick="showSection('payments')"><i class="fa-solid fa-credit-card"></i><span>Payments</span></div>
+        <div class="nav-item" onclick="showSection('audit')"><i class="fa-solid fa-clipboard-list"></i><span>Audit Logs</span></div>
+    </div>
+
+    <div class="main-content">
+        <div class="top-bar">
+            <h1 id="sectionTitle">Dashboard</h1>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div style="text-align:right;">
+                    <span id="adminEmail" style="font-size:0.8rem;color:#666;display:block;"></span>
+                    <span id="adminId" style="font-size:0.65rem;color:#444;font-family:monospace;"></span>
+                </div>
+                <button class="btn-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
+            </div>
+        </div>
+
+        <!-- Dashboard Section -->
+        <div id="section-dashboard" class="section active">
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card"><div class="stat-label">Total Parents</div><div class="stat-value blue" id="statParents">-</div></div>
+                <div class="stat-card"><div class="stat-label">Active Parents</div><div class="stat-value green" id="statActive">-</div></div>
+                <div class="stat-card"><div class="stat-label">Suspended</div><div class="stat-value red" id="statSuspended">-</div></div>
+                <div class="stat-card"><div class="stat-label">Total Devices</div><div class="stat-value purple" id="statDevices">-</div></div>
+                <div class="stat-card"><div class="stat-label">Active Subscriptions</div><div class="stat-value blue" id="statSubs">-</div></div>
+            </div>
+        </div>
+
+        <!-- Parents Section -->
+        <div id="section-parents" class="section">
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>Parent Management</h3>
+                    <input type="text" class="search-input" id="parentSearch" placeholder="Search by name or email..." oninput="searchParents()">
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Devices</th><th>Registered</th><th>Last Login</th><th>Actions</th></tr></thead>
+                        <tbody id="parentsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Devices Section -->
+        <div id="section-devices" class="section">
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>All Devices</h3>
+                    <input type="text" class="search-input" id="deviceSearch" placeholder="Search by device ID or model..." oninput="searchDevices()">
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead><tr><th>Device ID</th><th>Model</th><th>Owner</th><th>Last Seen</th><th>Actions</th></tr></thead>
+                        <tbody id="devicesTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Plans Section -->
+        <div id="section-plans" class="section">
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>Premium Plans Management</h3>
+                    <button class="action-btn" onclick="loadPlans()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+                </div>
+                <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin-bottom:18px;">
+                    <h4 style="margin:0 0 12px;color:#00d2ff;">Create Payment Card</h4>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;">
+                        <input id="newPlanName" placeholder="Plan name" style="padding:9px;background:#1e1e26;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;">
+                        <input id="newPlanSlug" placeholder="Slug (optional)" style="padding:9px;background:#1e1e26;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;">
+                        <input id="newPlanPrice" type="number" min="0" placeholder="Price ₹" style="padding:9px;background:#1e1e26;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;">
+                        <input id="newPlanDuration" type="number" min="0" placeholder="Duration days" style="padding:9px;background:#1e1e26;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;">
+                        <select id="newPlanBilling" style="padding:9px;background:#1e1e26;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;">
+                            <option value="custom">Custom duration</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="half-yearly">Half-Yearly</option><option value="yearly">Yearly</option>
+                        </select>
+                        <input id="newPlanDevices" type="number" min="1" value="1" placeholder="Device limit" style="padding:9px;background:#1e1e26;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;">
+                        <input id="newPlanFeatures" placeholder="Features, comma separated" style="padding:9px;background:#1e1e26;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;grid-column:span 2;">
+                        <input id="newPlanDescription" placeholder="Short description" style="padding:9px;background:#1e1e26;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;grid-column:span 2;">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:14px;margin-top:12px;">
+                        <label style="font-size:12px;color:#c8c8d0;"><input id="newPlanPopular" type="checkbox"> Mark as popular</label>
+                        <button class="action-btn" onclick="createPlan()"><i class="fa-solid fa-plus"></i> Create Card</button>
+                    </div>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead><tr><th>Plan Name</th><th>Billing</th><th>Duration (days)</th><th>Price (₹)</th><th>Devices</th><th>Status</th><th>Actions</th></tr></thead>
+                        <tbody id="plansTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subscriptions Section -->
+        <div id="section-subscriptions" class="section">
+            <div class="panel">
+                <div class="panel-header"><h3>Subscriptions</h3></div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead><tr><th>User</th><th>Plan</th><th>Status</th><th>Start</th><th>Expiry</th></tr></thead>
+                        <tbody id="subsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payments Section -->
+        <div id="section-payments" class="section">
+            <div class="panel">
+                <div class="panel-header"><h3>Payment History</h3><button class="action-btn" onclick="loadPayments()"><i class="fa-solid fa-rotate"></i> Refresh</button></div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead><tr><th>Order ID</th><th>Gateway Payment ID</th><th>User</th><th>Plan</th><th>Amount</th><th>Method</th><th>Status</th><th>Subscription</th><th>Date</th></tr></thead>
+                        <tbody id="paymentsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audit Logs Section -->
+        <div id="section-audit" class="section">
+            <div class="panel">
+                <div class="panel-header"><h3>Audit Logs</h3></div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead><tr><th>Action</th><th>Actor</th><th>Target</th><th>IP</th><th>Time</th></tr></thead>
+                        <tbody id="auditTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let currentUser = null;
+
+        // Auth check
+        (function checkAuth() {
+            const token = localStorage.getItem('access_token');
+            if (!token) { window.location.href='/login'; return; }
+            currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+            if (currentUser.role !== 'ADMIN') { window.location.href='/dashboard'; return; }
+            document.getElementById('adminEmail').textContent = currentUser.email || '';
+            document.getElementById('adminId').textContent = 'ID: ' + (currentUser._id || currentUser.email || 'N/A');
+        })();
+
+        function showSection(name) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById('section-' + name).classList.add('active');
+            event.currentTarget.classList.add('active');
+            const titles = { dashboard: 'Dashboard', parents: 'Parent Management', devices: 'Device Management', plans: 'Plans Management', subscriptions: 'Subscriptions', payments: 'Payments', audit: 'Audit Logs' };
+            document.getElementById('sectionTitle').textContent = titles[name] || name;
+
+            if (name === 'dashboard') loadDashboard();
+            if (name === 'parents') loadParents();
+            if (name === 'devices') loadDevices();
+            if (name === 'plans') loadPlans();
+            if (name === 'subscriptions') loadSubscriptions();
+            if (name === 'payments') loadPayments();
+            if (name === 'audit') loadAuditLogs();
+        }
+
+        async function authFetch(url, options = {}) {
+            const token = localStorage.getItem('access_token');
+            const headers = { ...options.headers, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+            const res = await fetch(API_BASE + url, { ...options, headers });
+            if (res.status === 401) {
+                const refreshed = await tryRefresh();
+                if (refreshed) {
+                    headers.Authorization = `Bearer ${localStorage.getItem('access_token')}`;
+                    return fetch(API_BASE + url, { ...options, headers });
+                }
+                window.location.href='/login';
+            }
+            return res;
+        }
+
+        async function tryRefresh() {
+            try {
+                const refreshToken = localStorage.getItem('refresh_token');
+                if (!refreshToken) return false;
+                const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refreshToken }),
+                });
+                if (!res.ok) return false;
+                const data = await res.json();
+                localStorage.setItem('access_token', data.accessToken);
+                localStorage.setItem('refresh_token', data.refreshToken);
+                return true;
+            } catch (e) { return false; }
+        }
+
+        async function loadDashboard() {
+            try {
+                const res = await authFetch('/api/admin/dashboard');
+                const data = await res.json();
+                document.getElementById('statParents').textContent = data.totalParents || 0;
+                document.getElementById('statActive').textContent = data.activeParents || 0;
+                document.getElementById('statSuspended').textContent = data.suspendedParents || 0;
+                document.getElementById('statDevices').textContent = data.totalDevices || 0;
+                document.getElementById('statSubs').textContent = data.activeSubscriptions || 0;
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadParents(search = '') {
+            try {
+                const res = await authFetch('/api/admin/parents?search=' + encodeURIComponent(search));
+                const data = await res.json();
+                const tbody = document.getElementById('parentsTable');
+                tbody.innerHTML = (data.parents || []).map(p => `
+                    <tr>
+                        <td>${p.name || '-'}</td>
+                        <td>${p.email || '-'}</td>
+                        <td><span class="badge badge-${p.status === 'active' ? 'active' : p.status === 'suspended' ? 'suspended' : 'banned'}">${p.status}</span></td>
+                        <td>${(p.devices || []).length}</td>
+                        <td>${p.registeredAt ? new Date(p.registeredAt).toLocaleString('en-IN', {day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'}) : '-'}</td>
+                        <td>${p.lastLogin ? new Date(p.lastLogin).toLocaleString('en-IN', {day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'}) : 'Never'}</td>
+                        <td>
+                            ${p.status === 'active' ? `<button class="action-btn danger" onclick="suspendParent('${p._id}')">Suspend</button>` : ''}
+                            ${p.status === 'suspended' ? `<button class="action-btn" onclick="unsuspendParent('${p._id}')">Unsuspend</button>` : ''}
+                            <button class="action-btn" onclick="forceLogout('${p._id}')">Logout</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) { console.error(e); }
+        }
+
+        function searchParents() { loadParents(document.getElementById('parentSearch').value); }
+
+        async function loadDevices(search = '') {
+            try {
+                const res = await authFetch('/api/admin/devices-managed?search=' + encodeURIComponent(search));
+                const data = await res.json();
+                const tbody = document.getElementById('devicesTable');
+                tbody.innerHTML = (data.devices || []).map(d => `
+                    <tr>
+                        <td>${d.deviceId || '-'}</td>
+                        <td>${d.model || '-'}</td>
+                        <td>${d.owner ? d.owner.email : 'Unassigned'}</td>
+                        <td>${d.lastSeen ? new Date(d.lastSeen).toLocaleString('en-IN', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'}) : '-'}</td>
+                        <td><button class="action-btn" onclick="viewDeviceDetails('${d.deviceId}')">View</button></td>
+                    </tr>
+                `).join('');
+            } catch (e) { console.error(e); }
+        }
+
+        async function viewDeviceDetails(deviceId) {
+            try {
+                // Fetch device status which includes full network/SIM details
+                const res = await fetch(`${API_BASE}/api/device-status/${deviceId}`);
+                const device = await res.json();
+                
+                const modalHtml = `
+                    <div id="deviceDetailModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this) this.remove()">
+                        <div style="background:#1a1a2e;border-radius:16px;padding:24px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;border:1px solid rgba(255,255,255,0.1);">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                                <h3 style="margin:0;color:#00d2ff;">Device Details: ${deviceId}</h3>
+                                <button onclick="document.getElementById('deviceDetailModal').remove()" style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer;">&times;</button>
+                            </div>
+                            
+                            <div style="display:grid;gap:16px;">
+                                <!-- Device Info -->
+                                <div style="background:rgba(255,255,255,0.05);padding:16px;border-radius:12px;">
+                                    <h4 style="color:#00ff88;margin:0 0 12px 0;font-size:14px;">📱 Device Information</h4>
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">
+                                        <div><strong>Model:</strong> ${device.model || '-'}</div>
+                                        <div><strong>Manufacturer:</strong> ${device.manufacturer || '-'}</div>
+                                        <div><strong>Android:</strong> ${device.androidVersion || '-'}</div>
+                                        <div><strong>Status:</strong> <span style="color:${device.isOnline ? '#00ff88' : '#ff4757'}">${device.isOnline ? 'Online' : 'Offline'}</span></div>
+                                        <div><strong>Last Seen:</strong> ${device.lastSeen ? new Date(device.lastSeen).toLocaleString() : '-'}</div>
+                                        <div><strong>Battery:</strong> ${device.battery || 0}% ${device.charging ? '⚡ Charging' : ''}</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Network Info -->
+                                ${device.network ? `
+                                <div style="background:rgba(255,255,255,0.05);padding:16px;border-radius:12px;">
+                                    <h4 style="color:#00d2ff;margin:0 0 12px 0;font-size:14px;">🌐 Network Information</h4>
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">
+                                        <div><strong>Type:</strong> ${device.network.type || '-'}</div>
+                                        <div><strong>IP:</strong> ${device.network.ip || '-'}</div>
+                                        <div><strong>WiFi:</strong> ${device.network.wifi || '-'}</div>
+                                        <div><strong>SSID:</strong> ${device.network.ssid || '-'}</div>
+                                    </div>
+                                </div>
+                                ` : ''}
+                                
+                                <!-- SIM Info -->
+                                ${device.sim ? `
+                                <div style="background:rgba(255,255,255,0.05);padding:16px;border-radius:12px;">
+                                    <h4 style="color:#af52de;margin:0 0 12px 0;font-size:14px;">📶 SIM Information</h4>
+                                    <div style="display:grid;gap:8px;font-size:13px;">
+                                        <div><strong>Operator:</strong> ${device.sim.operator || '-'}</div>
+                                        <div><strong>Country:</strong> ${device.sim.country || '-'}</div>
+                                        ${device.sim.phoneNumber ? `<div><strong>Phone:</strong> ${device.sim.phoneNumber}</div>` : ''}
+                                    </div>
+                                </div>
+                                ` : ''}
+                                
+                                <!-- Owner Info -->
+                                ${device.owner ? `
+                                <div style="background:rgba(255,255,255,0.05);padding:16px;border-radius:12px;">
+                                    <h4 style="color:#ffa502;margin:0 0 12px 0;font-size:14px;">👤 Owner Information</h4>
+                                    <div style="font-size:13px;">
+                                        <div><strong>Name:</strong> ${device.owner.name || '-'}</div>
+                                        <div><strong>Email:</strong> ${device.owner.email || '-'}</div>
+                                    </div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+            } catch (e) {
+                alert('Failed to load device details: ' + e.message);
+            }
+        }
+
+        function searchDevices() { loadDevices(document.getElementById('deviceSearch').value); }
+
+        async function loadPlans() {
+            try {
+                const res = await authFetch('/api/admin/plans');
+                const data = await res.json();
+                const tbody = document.getElementById('plansTable');
+                
+                const durationLabels = {
+                    'monthly': '1 Month',
+                    'custom': 'Custom',
+                    'quarterly': '3 Months',
+                    'half-yearly': '6 Months',
+                    'yearly': '1 Year',
+                    'weekly': '1 Week'
+                };
+                
+                tbody.innerHTML = (data.plans || []).map(p => `
+                    <tr>
+                        <td><strong>${p.name}</strong></td>
+                        <td>
+                            <select id="period-${p._id}" style="width:110px;padding:6px;background:#1e1e26;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;font-size:13px;">
+                                ${['free','weekly','custom','monthly','quarterly','half-yearly','yearly'].map(period => `<option value="${period}" ${p.billingPeriod === period ? 'selected' : ''}>${durationLabels[period] || period}</option>`).join('')}
+                            </select>
+                        </td>
+                        <td><input type="number" min="0" value="${p.durationDays}" style="width:90px;padding:6px;background:#1e1e26;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;font-size:13px;" id="duration-${p._id}"></td>
+                        <td>
+                            <input type="number" value="${p.price}" style="width:80px;padding:6px;background:#1e1e26;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;font-size:13px;" id="price-${p._id}">
+                        </td>
+                        <td>
+                            <input type="number" value="${p.deviceLimit}" style="width:60px;padding:6px;background:#1e1e26;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;font-size:13px;" id="devices-${p._id}">
+                        </td>
+                        <td><span class="badge badge-${p.isActive ? 'active' : 'suspended'}">${p.isActive ? 'Active' : 'Inactive'}</span></td>
+                        <td>
+                            <button class="action-btn" onclick="updatePlan('${p._id}')">Save</button>
+                            <button class="action-btn" onclick="togglePlan('${p._id}', ${!p.isActive})">${p.isActive ? 'Disable' : 'Enable'}</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) { console.error(e); }
+        }
+
+        async function createPlan() {
+            const name = document.getElementById('newPlanName').value.trim();
+            const price = Number(document.getElementById('newPlanPrice').value);
+            const durationDays = Number(document.getElementById('newPlanDuration').value);
+            const deviceLimit = Number(document.getElementById('newPlanDevices').value || 1);
+            if (!name || !Number.isFinite(price) || price < 0 || !Number.isFinite(durationDays) || durationDays < 0 || !Number.isInteger(deviceLimit) || deviceLimit < 1) {
+                alert('Enter a valid name, price, duration, and device limit');
+                return;
+            }
+            try {
+                const res = await authFetch('/api/admin/plans', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        name,
+                        slug: document.getElementById('newPlanSlug').value.trim(),
+                        price,
+                        durationDays,
+                        deviceLimit,
+                        billingPeriod: document.getElementById('newPlanBilling').value,
+                        features: document.getElementById('newPlanFeatures').value,
+                        description: document.getElementById('newPlanDescription').value,
+                        isPopular: document.getElementById('newPlanPopular').checked
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Unable to create plan');
+                alert('Payment card created successfully');
+                ['newPlanName','newPlanSlug','newPlanPrice','newPlanDuration','newPlanFeatures','newPlanDescription'].forEach(id => document.getElementById(id).value = '');
+                document.getElementById('newPlanDevices').value = '1';
+                document.getElementById('newPlanPopular').checked = false;
+                loadPlans();
+            } catch (e) { alert('Error: ' + e.message); }
+        }
+
+        async function updatePlan(planId) {
+            const price = parseInt(document.getElementById(`price-${planId}`).value);
+            const durationDays = parseInt(document.getElementById(`duration-${planId}`).value);
+            const deviceLimit = parseInt(document.getElementById(`devices-${planId}`).value);
+            const billingPeriod = document.getElementById(`period-${planId}`).value;
+            
+            if (isNaN(price) || price < 0 || isNaN(durationDays) || durationDays < 0) {
+                alert('Invalid price');
+                return;
+            }
+            if (isNaN(deviceLimit) || deviceLimit < 1) {
+                alert('Invalid device limit');
+                return;
+            }
+            
+            try {
+                const res = await authFetch(`/api/admin/plans/${planId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ price, durationDays, deviceLimit, billingPeriod })
+                });
+                
+                if (res.ok) {
+                    alert('Plan updated successfully');
+                    loadPlans();
+                } else {
+                    const data = await res.json();
+                    alert('Failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        async function togglePlan(planId, isActive) {
+            try {
+                const res = await authFetch(`/api/admin/plans/${planId}/toggle`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ isActive })
+                });
+                
+                if (res.ok) {
+                    loadPlans();
+                } else {
+                    const data = await res.json();
+                    alert('Failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        async function loadSubscriptions() {
+            try {
+                const res = await authFetch('/api/admin/subscriptions');
+                const data = await res.json();
+                const tbody = document.getElementById('subsTable');
+                tbody.innerHTML = (data.subscriptions || []).map(s => `
+                    <tr>
+                        <td>${s.userId?.email || '-'}</td>
+                        <td>${s.planId?.name || '-'}</td>
+                        <td><span class="badge badge-${s.status === 'active' ? 'active' : 'suspended'}">${s.status}</span></td>
+                        <td>${s.startDate ? new Date(s.startDate).toLocaleDateString() : '-'}</td>
+                        <td>${s.expiryDate ? new Date(s.expiryDate).toLocaleDateString() : '-'}</td>
+                    </tr>
+                `).join('');
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadPayments() {
+            try {
+                const res = await authFetch('/api/admin/payments');
+                const data = await res.json();
+                const tbody = document.getElementById('paymentsTable');
+                tbody.innerHTML = (data.payments || []).map(p => `
+                    <tr>
+                        <td style="font-size:0.75rem;">${p.orderId || '-'}</td>
+                        <td style="font-size:0.75rem;">${p.paymentId || '-'}</td>
+                        <td>${p.userId?.email || '-'}</td>
+                        <td>${p.planId?.name || '-'}</td>
+                        <td>${p.currency || 'INR'} ${p.amount || 0}</td>
+                        <td>${typeof p.paymentMethod === 'string' ? p.paymentMethod : (p.paymentMethod ? 'Online' : '-')}</td>
+                        <td><span class="badge badge-${p.status === 'success' ? 'active' : 'suspended'}">${p.status}</span></td>
+                        <td>${p.subscriptionId ? 'Linked' : '-'}</td>
+                        <td>${p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '-'}</td>
+                    </tr>
+                `).join('');
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadAuditLogs() {
+            try {
+                const res = await authFetch('/api/admin/audit-logs?limit=100');
+                const data = await res.json();
+                const tbody = document.getElementById('auditTable');
+                tbody.innerHTML = (data.logs || []).map(l => `
+                    <tr>
+                        <td>${l.action || '-'}</td>
+                        <td>${l.actorEmail || '-'}</td>
+                        <td>${l.targetId || '-'}</td>
+                        <td style="font-size:0.75rem;">${l.ip || '-'}</td>
+                        <td>${l.timestamp ? new Date(l.timestamp).toLocaleString() : '-'}</td>
+                    </tr>
+                `).join('');
+            } catch (e) { console.error(e); }
+        }
+
+        async function suspendParent(id) {
+            const reason = prompt('Reason for suspension:');
+            if (reason === null) return;
+            try {
+                const res = await authFetch(`/api/admin/parents/${id}/suspend`, { method: 'POST', body: JSON.stringify({ reason }) });
+                if (res.ok) { alert('Parent suspended'); loadParents(); }
+                else { const d = await res.json(); alert(d.error || 'Failed'); }
+            } catch (e) { alert('Error: ' + e.message); }
+        }
+
+        async function unsuspendParent(id) {
+            try {
+                const res = await authFetch(`/api/admin/parents/${id}/unsuspend`, { method: 'POST' });
+                if (res.ok) { alert('Parent unsuspended'); loadParents(); }
+                else { const d = await res.json(); alert(d.error || 'Failed'); }
+            } catch (e) { alert('Error: ' + e.message); }
+        }
+
+        async function forceLogout(id) {
+            try {
+                const res = await authFetch(`/api/admin/parents/${id}/force-logout`, { method: 'POST' });
+                if (res.ok) alert('Parent logged out');
+                else { const d = await res.json(); alert(d.error || 'Failed'); }
+            } catch (e) { alert('Error: ' + e.message); }
+        }
+
+        async function logout() {
+            try {
+                const token = localStorage.getItem('access_token');
+                const refreshToken = localStorage.getItem('refresh_token');
+                await fetch(`${API_BASE}/api/auth/logout`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ refreshToken }),
+                });
+            } catch (e) {}
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user');
+            window.location.href='/login';
+        }
+
+        loadDashboard();
+    </script>
+</body>
+</html>

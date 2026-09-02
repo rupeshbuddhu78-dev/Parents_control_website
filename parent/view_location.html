@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Location Tracker</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        :root {
+            --bg-color: #0f0f0f;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text-main: #ffffff;
+            --cyan: #00f3ff;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column; height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 450px; z-index: 1000;
+            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px);
+            border-radius: 20px; padding: 15px;
+            border: 1px solid var(--glass-border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .back-btn { color: white; font-size: 1.2rem; text-decoration: none; }
+        .title { font-weight: bold; color: var(--cyan); letter-spacing: 1px; }
+        
+        #map { height: 100%; width: 100%; z-index: 1; }
+
+        .info-panel {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 450px; z-index: 1000;
+            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px);
+            border-radius: 25px; padding: 20px;
+            border: 1px solid var(--cyan);
+        }
+
+        .coords-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .data-box { background: rgba(255,255,255,0.05); padding: 8px; border-radius: 10px; text-align: center; }
+        .lbl { font-size: 0.6rem; color: #aaa; text-transform: uppercase; }
+        .val { font-size: 0.9rem; font-weight: bold; color: white; }
+
+        .action-row { display: flex; gap: 10px; }
+        .btn {
+            flex: 1; padding: 12px; border: none; border-radius: 12px;
+            font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-refresh { background: var(--glass-bg); color: white; border: 1px solid var(--glass-border); }
+        .btn-maps { background: var(--cyan); color: black; }
+
+        .last-seen { text-align: center; font-size: 0.7rem; color: #888; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+        <div class="title"><i class="fa-solid fa-location-crosshairs"></i> LIVE TRACKER</div>
+        <div style="width: 20px;"></div>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="info-panel">
+        <div class="coords-grid">
+            <div class="data-box"><div class="lbl">Latitude</div><div class="val" id="lat">--</div></div>
+            <div class="data-box"><div class="lbl">Longitude</div><div class="val" id="lon">--</div></div>
+            <div class="data-box"><div class="lbl">Accuracy</div><div class="val" id="acc">--</div></div>
+            <div class="data-box"><div class="lbl">Speed</div><div class="val" id="spd">0 km/h</div></div>
+        </div>
+
+        <div class="action-row">
+            <button class="btn btn-refresh" onclick="fetchLocation()"><i class="fa-solid fa-rotate"></i> Update</button>
+            <button class="btn btn-maps" onclick="openGoogleMaps()"><i class="fa-solid fa-map-location-dot"></i> Maps</button>
+        </div>
+        <div class="last-seen" id="lastUpdate">Waiting for signal...</div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // --- AUTH CHECK ---
+        (function(){
+            var t = localStorage.getItem("access_token");
+            if(!t){ window.location.href='/login'; return; }
+            try {
+                var u = JSON.parse(localStorage.getItem("user") || "{}");
+                if(!u.email){ window.location.href='/login'; }
+            } catch(e){ window.location.href='/login'; }
+        })();
+
+        const API_BASE = 'https://parents-control-website1.onrender.com';
+        const urlParams = new URLSearchParams(window.location.search);
+        const DEVICE_ID = urlParams.get('id');
+
+        // Default view (India center)
+        let map = L.map('map').setView([20.5937, 78.9629], 5);
+        let marker, circle;
+
+        // Dark Theme Map Layer
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        async function fetchLocation() {
+            const btn = document.querySelector('.btn-refresh');
+            const statusTxt = document.getElementById('lastUpdate');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Finding...';
+            statusTxt.innerText = "Requesting GPS from device...";
+
+            try {
+                await fetch(`${API_BASE}/api/send-command`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device_id: DEVICE_ID, command: 'location' })
+                });
+
+                let latest = null;
+                for (let attempt = 0; attempt < 8; attempt++) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    const res = await fetch(`${API_BASE}/api/get-data/${encodeURIComponent(DEVICE_ID)}/location?t=${Date.now()}`, { cache: 'no-store' });
+                    const data = await res.json();
+                    const rows = Array.isArray(data) ? data : [data];
+                    const validRows = rows.filter(row => row && Number(row.lat || row.latitude) !== 0 && Number(row.lon || row.lng || row.longitude) !== 0);
+                    validRows.sort((a, b) => Number(b.time || b.providerTime || 0) - Number(a.time || a.providerTime || 0));
+                    if (validRows.length) { latest = validRows[0]; break; }
+                }
+
+                if (latest) {
+                    const lt = latest.lat || latest.latitude;
+                    const ln = latest.lon || latest.lng || latest.longitude;
+                    updateUI(lt, ln, latest.accuracy, latest.speed, latest.time || latest.providerTime);
+                } else {
+                    statusTxt.innerText = "GPS fix not available yet. Check Location permission and GPS, then retry.";
+                }
+            } catch (err) {
+                console.error(err);
+                statusTxt.innerText = "Server connection failed.";
+            } finally {
+                btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Update';
+            }
+        }
+
+        function updateUI(lat, lon, acc, spd, time) {
+            document.getElementById('lat').innerText = parseFloat(lat).toFixed(5);
+            document.getElementById('lon').innerText = parseFloat(lon).toFixed(5);
+            document.getElementById('acc').innerText = acc ? Math.round(acc) + "m" : "--";
+            document.getElementById('spd').innerText = spd ? Math.round(spd * 3.6) + " km/h" : "0 km/h";
+            document.getElementById('lastUpdate').innerText = "Updated: " + new Date().toLocaleTimeString();
+
+            const pos = [lat, lon];
+            map.flyTo(pos, 16); 
+
+            if (marker) {
+                marker.setLatLng(pos);
+                circle.setLatLng(pos).setRadius(acc || 20);
+            } else {
+                marker = L.marker(pos).addTo(map);
+                circle = L.circle(pos, {radius: acc || 20, color: '#00f3ff'}).addTo(map);
+            }
+        }
+
+        function openGoogleMaps() {
+            const lat = document.getElementById('lat').innerText;
+            const lon = document.getElementById('lon').innerText;
+            
+            if(lat === '--' || lat === '0.00000') {
+                return alert("Pehle location load hone do!");
+            }
+            
+            // 🔥 FIXED: Sahi URL Format Google Maps ke liye
+            const url = `https://www.google.com/maps?q=${lat},${lon}`;
+            window.open(url, '_blank');
+        }
+
+        window.addEventListener('load', () => {
+            if (DEVICE_ID) {
+                fetchLocation();
+                setInterval(fetchLocation, 30000);
+            } else {
+                alert("ID missing! Dashboard se wapas aao.");
+                window.location.href = 'index.html';
+            }
+        }, { once: true });
+    </script>
+</body>
+</html>

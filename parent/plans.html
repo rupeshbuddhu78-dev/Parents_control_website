@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Plans - Parents Control</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+        
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 20px;
+        }
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.9);
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #1a1a2e;
+            margin-bottom: 10px;
+        }
+        .header p {
+            color: #555;
+            font-size: 1rem;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        /* Plans Grid */
+        .plans-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        /* Plan Card */
+        .plan-card {
+            background: #fff;
+            border-radius: 24px;
+            padding: 32px 28px;
+            position: relative;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 2px solid transparent;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+        }
+        .plan-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+        }
+        .plan-card.popular {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+        .plan-card.popular .plan-duration,
+        .plan-card.popular .plan-price-period,
+        .plan-card.popular .feature-text {
+            color: rgba(255,255,255,0.85);
+        }
+        .plan-card.popular .feature-icon {
+            color: #ffd700;
+        }
+
+        /* Popular Badge */
+        .popular-badge {
+            position: absolute;
+            top: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: #fff;
+            padding: 6px 20px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+        }
+
+        /* Plan Header */
+        .plan-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 16px;
+        }
+        .plan-card:not(.popular) .plan-icon {
+            background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+            color: #667eea;
+        }
+        .plan-card.popular .plan-icon {
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+        }
+        .plan-name {
+            font-size: 1.3rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+        .plan-duration {
+            font-size: 0.85rem;
+            color: #666;
+            font-weight: 600;
+        }
+
+        /* Pricing */
+        .plan-price-box {
+            margin: 24px 0;
+            padding: 20px 0;
+            border-top: 1px solid rgba(0,0,0,0.06);
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+        }
+        .plan-card.popular .plan-price-box {
+            border-color: rgba(255,255,255,0.2);
+        }
+        .plan-price {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+        .plan-price-currency {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        .plan-price-amount {
+            font-size: 3rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .plan-price-period {
+            font-size: 0.9rem;
+            color: #666;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+        .plan-monthly-equiv {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 6px;
+            font-weight: 600;
+        }
+        .plan-card.popular .plan-monthly-equiv {
+            color: rgba(255,255,255,0.7);
+        }
+
+        /* Features */
+        .features-list {
+            list-style: none;
+            margin: 24px 0;
+        }
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+        }
+        .feature-icon {
+            color: #00c853;
+            font-size: 0.9rem;
+        }
+        .feature-text {
+            font-size: 0.9rem;
+            color: #444;
+            font-weight: 500;
+        }
+
+        /* Button */
+        .plan-btn {
+            width: 100%;
+            padding: 16px;
+            border-radius: 14px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s;
+            font-family: inherit;
+            margin-top: 8px;
+        }
+        .plan-card:not(.popular) .plan-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+        .plan-card:not(.popular) .plan-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+        .plan-card.popular .plan-btn {
+            background: #fff;
+            color: #667eea;
+        }
+        .plan-card.popular .plan-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 25px rgba(255,255,255,0.3);
+        }
+        .plan-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        .plan-btn.current-plan {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        /* Device Limit Badge */
+        .device-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0,0,0,0.05);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-top: 12px;
+        }
+        .plan-card.popular .device-badge {
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* Back Link */
+        .back-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: #555;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 16px;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: #667eea; }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        .loading i {
+            font-size: 2rem;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+            display: block;
+            color: #667eea;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Current Plan Indicator */
+        .current-plan-indicator {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .plan-card.popular .current-plan-indicator {
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.6rem; }
+            .plans-grid { grid-template-columns: 1fr; max-width: 400px; margin: 0 auto 40px; }
+            .plan-card { padding: 24px 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-badge">
+                <i class="fa-solid fa-crown"></i>
+                <span>PREMIUM PLANS</span>
+            </div>
+            <h1>Unlock Full Monitoring Power</h1>
+            <p>Choose the perfect plan to keep your family safe with advanced monitoring features</p>
+        </div>
+
+        <div class="plans-grid" id="plansGrid">
+            <div class="loading">
+                <i class="fa-solid fa-spinner"></i>
+                <p>Loading plans...</p>
+            </div>
+        </div>
+
+        <a href="/dashboard" class="back-link">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Cashfree Checkout SDK (current hosted checkout SDK) -->
+    <script data-cashfree-sdk src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+    
+    <script>
+        const API_BASE = window.location.origin;
+        let currentSubscription = null;
+        let isProcessing = false;
+
+        // Auth fetch with token refresh
+        async function authFetch(url, options = {}) {
+            const token = localStorage.getItem('access_token');
+            const headers = { ...options.headers, 'Authorization': `Bearer ${token}` };
+            const res = await fetch(API_BASE + url, { ...options, headers });
+            if (res.status === 401) {
+                // Try refresh
+                const refreshed = await tryRefresh();
+                if (refreshed) {
+                    const newToken = localStorage.getItem('access_token');
+                    headers.Authorization = `Bearer ${newToken}`;
+                    return fetch(API_BASE + url, { ...options, headers });
+                }
+                window.location.href='/login';
+            }
+            return res;
+        }
+
+        async function tryRefresh() {
+            try {
+                const refreshToken = localStorage.getItem('refresh_token');
+                if (!refreshToken) return false;
+                const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refreshToken }),
+                });
+                if (!res.ok) return false;
+                const data = await res.json();
+                localStorage.setItem('access_token', data.accessToken);
+                localStorage.setItem('refresh_token', data.refreshToken);
+                return true;
+            } catch (e) { return false; }
+        }
+
+        // Load plans and subscription status
+        async function init() {
+            try {
+                // Load subscription status if logged in
+                const token = localStorage.getItem('access_token');
+                if (token) {
+                    try {
+                        const subRes = await authFetch('/api/subscription/status');
+                        if (subRes.ok) {
+                            const subData = await subRes.json();
+                            if (subData.hasActiveSubscription && subData.subscription) {
+                                currentSubscription = subData.subscription;
+                            }
+                        }
+                    } catch (e) { /* Not logged in or error */ }
+                }
+
+                // Load plans
+                const res = await fetch(`${API_BASE}/api/plans`);
+                const data = await res.json();
+                renderPlans(data.plans || []);
+            } catch (e) {
+                document.getElementById('plansGrid').innerHTML = '<p style="text-align:center;color:#666;padding:40px;">Failed to load plans. Please try again.</p>';
+            }
+        }
+
+        function renderPlans(plans) {
+            const grid = document.getElementById('plansGrid');
+            
+            // Filter out free plan if exists
+            const paidPlans = plans.filter(p => p.price > 0);
+            
+            if (paidPlans.length === 0) {
+                grid.innerHTML = '<p style="text-align:center;color:#666;padding:40px;">No plans available at the moment.</p>';
+                return;
+            }
+
+            const planIcons = {
+                'weekly': 'fa-calendar-day',
+                'monthly': 'fa-calendar-check',
+                'quarterly': 'fa-calendar-week',
+                'half-yearly': 'fa-calendar-days',
+                'yearly': 'fa-calendar-alt'
+            };
+
+            const durationLabels = {
+                'weekly': '1 Week',
+                'monthly': '1 Month',
+                'quarterly': '3 Months',
+                'half-yearly': '6 Months',
+                'yearly': '1 Year'
+            };
+
+            grid.innerHTML = paidPlans.map(plan => {
+                const isCurrentPlan = currentSubscription && 
+                    currentSubscription.planId && 
+                    currentSubscription.planId._id === plan._id &&
+                    currentSubscription.status === 'active';
+
+                const monthlyEquiv = (plan.billingPeriod === 'monthly' || plan.billingPeriod === 'weekly') 
+                    ? null 
+                    : `₹${(plan.price / (plan.durationDays / 30)).toFixed(0)}/month`;
+
+                const durationLabel = plan.billingPeriod === 'custom'
+                    ? `${plan.durationDays} Days`
+                    : (durationLabels[plan.billingPeriod] || `${plan.durationDays} Days`);
+                const icon = planIcons[plan.billingPeriod] || 'fa-crown';
+
+                return `
+                    <div class="plan-card ${plan.isPopular ? 'popular' : ''}">
+                        ${isCurrentPlan ? '<div class="current-plan-indicator"><i class="fa-solid fa-check"></i> Current Plan</div>' : ''}
+                        ${plan.isPopular ? '<div class="popular-badge"><i class="fa-solid fa-star"></i> Most Popular</div>' : ''}
+                        
+                        <div class="plan-icon">
+                            <i class="fa-solid ${icon}"></i>
+                        </div>
+                        <div class="plan-name">${plan.name}</div>
+                        <div class="plan-duration">${durationLabel}</div>
+
+                        <div class="plan-price-box">
+                            <div class="plan-price">
+                                <span class="plan-price-currency">₹</span>
+                                <span class="plan-price-amount">${plan.price}</span>
+                                <span class="plan-price-period">/ ${durationLabel.toLowerCase()}</span>
+                            </div>
+                            ${monthlyEquiv ? `<div class="plan-monthly-equiv">Just ${monthlyEquiv}</div>` : ''}
+                        </div>
+
+                        <ul class="features-list">
+                            ${(plan.features || []).map(f => `
+                                <li class="feature-item">
+                                    <i class="fa-solid fa-check feature-icon"></i>
+                                    <span class="feature-text">${f}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+
+                        <div class="device-badge">
+                            <i class="fa-solid fa-mobile-screen"></i>
+                            ${plan.deviceLimit} Devices
+                        </div>
+
+                        <button class="plan-btn ${isCurrentPlan ? 'current-plan' : ''}" 
+                                id="btn-${plan._id}"
+                                onclick="selectPlan('${plan._id}', '${plan.name}', ${plan.price})" 
+                                ${isCurrentPlan ? 'disabled' : ''}>
+                            ${isCurrentPlan ? '<i class="fa-solid fa-check"></i> Active' : '<i class="fa-solid fa-bolt"></i> Subscribe Now'}
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function loadCashfreeSdk() {
+            if (typeof window.Cashfree === 'function') return Promise.resolve();
+            if (window.__cashfreeSdkPromise) return window.__cashfreeSdkPromise;
+
+            window.__cashfreeSdkPromise = new Promise((resolve, reject) => {
+                const previous = document.querySelector('script[data-cashfree-sdk]');
+                // If the initial CDN load failed or did not expose Cashfree, retry
+                // with a fresh request instead of waiting on a dead script node.
+                if (previous) previous.remove();
+
+                const script = document.createElement('script');
+                script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
+                script.async = true;
+                script.dataset.cashfreeSdk = 'true';
+
+                let settled = false;
+                const finish = (error) => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timeout);
+                    script.removeEventListener('load', onLoad);
+                    script.removeEventListener('error', onError);
+                    if (error) {
+                        window.__cashfreeSdkPromise = null;
+                        reject(error);
+                    } else {
+                        resolve();
+                    }
+                };
+                const onLoad = () => {
+                    if (typeof window.Cashfree === 'function') finish();
+                    else finish(new Error('Payment system loaded incorrectly. Please refresh and try again.'));
+                };
+                const onError = () => finish(new Error('Unable to load the payment system. Check your internet connection and try again.'));
+                const timeout = setTimeout(onError, 10000);
+
+                script.addEventListener('load', onLoad, { once: true });
+                script.addEventListener('error', onError, { once: true });
+                document.head.appendChild(script);
+            });
+
+            return window.__cashfreeSdkPromise;
+        }
+
+        async function selectPlan(planId, planName, price) {
+            // Prevent double-click
+            if (isProcessing) {
+                console.log('[PAYMENT] Already processing, please wait...');
+                return;
+            }
+
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                alert('Please login first');
+                window.location.href = '/login';
+                return;
+            }
+
+            // Confirm subscription
+            if (!confirm(`Subscribe to ${planName} plan for ₹${price}?`)) return;
+
+            isProcessing = true;
+            const btn = document.getElementById(`btn-${planId}`);
+            const originalText = btn.innerHTML;
+
+            try {
+                // Step 1: Create order
+                console.log('[PAYMENT] Creating Cashfree order for plan:', planName);
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating Payment...';
+                btn.disabled = true;
+
+                const res = await authFetch('/api/payment/create-order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ planId }),
+                });
+                
+                const data = await res.json();
+                
+                if (!res.ok) {
+                    throw new Error(data.error || data.details || 'Failed to create order');
+                }
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Order creation failed');
+                }
+
+                console.log('[PAYMENT] Order created:', data.orderId);
+                console.log('[PAYMENT] Payment session received:', data.paymentSessionId ? 'YES' : 'NO');
+                console.log('[PAYMENT] Environment:', data.cashfreeEnv);
+
+                // Step 2: Check if payment session ID exists
+                if (!data.paymentSessionId) {
+                    throw new Error('Payment session not received. Please contact admin.');
+                }
+
+                // Step 3: Initialize Cashfree checkout
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Opening Checkout...';
+                console.log('[PAYMENT] Initializing Cashfree checkout...');
+
+                // Use environment from backend
+                const isSandbox = data.cashfreeEnv === 'sandbox';
+                console.log('[PAYMENT] Cashfree mode:', isSandbox ? 'sandbox' : 'production');
+
+                // Cashfree’s current browser SDK is loaded from the v3 CDN. Wait for it
+                // explicitly so a slow CDN response cannot produce a false "SDK not loaded" error.
+                await loadCashfreeSdk();
+                if (typeof window.Cashfree !== 'function') {
+                    console.error('[PAYMENT] Cashfree SDK not available after loading');
+                    throw new Error('Payment system not ready. Please refresh the page and try again.');
+                }
+
+                console.log('[PAYMENT] Cashfree SDK loaded, initializing...');
+                
+                try {
+                    const cashfree = window.Cashfree({
+                        mode: isSandbox ? 'sandbox' : 'production'
+                    });
+
+                    console.log('[PAYMENT] Opening Cashfree checkout with session:', data.paymentSessionId);
+
+                    const checkoutResult = cashfree.checkout({
+                        paymentSessionId: data.paymentSessionId,
+                        redirectTarget: '_self'
+                    });
+                    if (checkoutResult && typeof checkoutResult.then === 'function') {
+                        await checkoutResult;
+                    }
+                } catch (sdkError) {
+                    console.error('[PAYMENT] SDK checkout error:', sdkError);
+                    throw new Error('Failed to open payment checkout: ' + (sdkError.message || 'Unknown checkout error'));
+                }
+
+            } catch (e) {
+                console.error('[PAYMENT] Error:', e.message);
+                alert('Payment Error: ' + e.message);
+                
+                // Reset button
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                isProcessing = false;
+            }
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>

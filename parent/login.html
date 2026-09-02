@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Child Monitor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-gradient: linear-gradient(135deg, #fceef5 0%, #e0c3fc 50%, #8ec5fc 100%);
+            --glass-bg: rgba(255, 245, 250, 0.65);
+            --card-bg: rgba(255, 250, 252, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.8);
+            --text-main: #1d1d1f;
+            --text-muted: #6e6e73;
+            --primary: #0066ff;
+            --error: #ff3b30;
+            --success: #34c759;
+            --input-bg: #f2f2f7;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+        [data-theme="dark"] {
+            --bg-gradient: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            --glass-bg: rgba(15, 15, 20, 0.55);
+            --card-bg: rgba(30, 30, 35, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #ffffff;
+            --text-muted: #a0aec0;
+            --primary: #00f3ff;
+            --input-bg: #2a2a35;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        body {
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-main);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .auth-container {
+            background: var(--card-bg);
+            backdrop-filter: blur(25px);
+            border-radius: 28px;
+            padding: 40px 30px;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 400px;
+        }
+        .auth-header { text-align: center; margin-bottom: 30px; }
+        .auth-header h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 8px; }
+        .auth-header p { color: var(--text-muted); font-size: 0.9rem; }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-group input {
+            width: 100%;
+            padding: 14px 16px;
+            background: var(--input-bg);
+            border: 2px solid transparent;
+            border-radius: 14px;
+            color: var(--text-main);
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus { border-color: var(--primary); }
+        .btn-primary {
+            width: 100%;
+            padding: 16px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-primary:active { transform: scale(0.98); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-google {
+            width: 100%;
+            padding: 14px;
+            background: var(--card-bg);
+            color: var(--text-main);
+            border: 2px solid var(--input-bg);
+            border-radius: 14px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.2s;
+        }
+        .btn-google:hover { border-color: var(--primary); background: var(--input-bg); }
+        .auth-footer { text-align: center; margin-top: 20px; font-size: 0.9rem; color: var(--text-muted); }
+        .auth-footer a { color: var(--primary); font-weight: 700; text-decoration: none; cursor: pointer; }
+        .error-msg { background: rgba(255, 59, 48, 0.1); color: var(--error); padding: 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; margin-bottom: 16px; display: none; }
+        .success-msg { background: rgba(52, 199, 89, 0.1); color: var(--success); padding: 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; margin-bottom: 16px; display: none; }
+        .tabs { display: flex; gap: 0; margin-bottom: 25px; background: var(--input-bg); border-radius: 14px; padding: 4px; }
+        .tab { flex: 1; text-align: center; padding: 12px; border-radius: 10px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; color: var(--text-muted); }
+        .tab.active { background: var(--card-bg); color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .theme-toggle { position: fixed; top: 15px; right: 15px; width: 40px; height: 40px; border-radius: 50%; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-main); font-size: 1.1rem; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: var(--shadow); z-index: 100; }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
+
+    <div class="auth-container">
+        <div class="auth-header">
+            <h1><i class="fa-solid fa-shield-halved"></i> Child Monitor</h1>
+            <p>Secure parental monitoring dashboard</p>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('login')">Login</div>
+            <div class="tab" onclick="switchTab('register')">Register</div>
+        </div>
+
+        <div id="errorMsg" class="error-msg"></div>
+        <div id="successMsg" class="success-msg"></div>
+
+        <!-- Login Form -->
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="loginEmail" placeholder="your@email.com" required>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="loginPassword" placeholder="Enter password" required>
+            </div>
+            <button type="submit" class="btn-primary" id="loginBtn">Login</button>
+            
+            <!-- Google Login Button -->
+            <div style="margin-top: 16px; position: relative;">
+                <div style="display: flex; align-items: center; gap: 12px; margin: 20px 0;">
+                    <div style="flex: 1; height: 1px; background: var(--input-bg);"></div>
+                    <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">OR</span>
+                    <div style="flex: 1; height: 1px; background: var(--input-bg);"></div>
+                </div>
+                <button type="button" class="btn-google" onclick="googleLogin()">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.797 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
+                        <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/>
+                        <path d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+                        <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+                    </svg>
+                    Continue with Google
+                </button>
+            </div>
+            
+            <div class="auth-footer">
+                <a onclick="showForgotPassword()">Forgot password?</a>
+            </div>
+        </form>
+
+        <!-- Register Form -->
+        <form id="registerForm" onsubmit="handleRegister(event)" style="display:none;">
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" id="regName" placeholder="Your name" required>
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="regEmail" placeholder="your@email.com" required>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="regPassword" placeholder="Min 8 characters" required minlength="8">
+            </div>
+            <button type="submit" class="btn-primary" id="regBtn">Create Account</button>
+        </form>
+
+        <!-- Forgot Password Form -->
+        <form id="forgotForm" onsubmit="handleForgotPassword(event)" style="display:none;">
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="forgotEmail" placeholder="your@email.com" required>
+            </div>
+            <button type="submit" class="btn-primary">Send Reset Link</button>
+            <div class="auth-footer">
+                <a onclick="switchTab('login')">Back to login</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        // --- GOOGLE LOGIN ---
+        function googleLogin() {
+            const clientId = '822719462819-k5u58rfmv0kgl9svum7l47ntopkqvu0u.apps.googleusercontent.com';
+            const redirectUri = window.location.origin + '/auth/google/callback';
+            
+            // Generate nonce (required for response_type id_token per OpenID Connect spec)
+            const nonce = crypto.getRandomValues(new Uint8Array(16)).reduce((s, b) => s + b.toString(16).padStart(2, '0'), '');
+            // Store nonce in sessionStorage to verify on callback
+            sessionStorage.setItem('google_oauth_nonce', nonce);
+            
+            // Build Google OAuth URL for full page redirect
+            const params = new URLSearchParams({
+                client_id: clientId,
+                redirect_uri: redirectUri,
+                response_type: 'token id_token',
+                scope: 'openid email profile',
+                prompt: 'select_account',
+                include_granted_scopes: 'true',
+                nonce: nonce,
+            });
+            
+            // Redirect to Google login page
+            window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+        }
+
+        // Handle Google OAuth callback (when redirected back)
+        (function handleGoogleCallback() {
+            const hash = window.location.hash;
+            if (!hash || !hash.includes('id_token')) return;
+            
+            // Parse tokens from URL hash
+            const params = new URLSearchParams(hash.substring(1));
+            const idToken = params.get('id_token');
+            const accessToken = params.get('access_token');
+            
+            if (!idToken) return;
+            
+            // Clear hash from URL
+            history.replaceState(null, null, window.location.pathname);
+            
+            // Decode and send to backend
+            try {
+                const data = JSON.parse(atob(idToken.split('.')[1]));
+                
+                // Send to backend
+                fetch(`${API_BASE}/api/auth/google`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token: idToken,
+                        email: data.email,
+                        name: data.name || data.email.split('@')[0],
+                        picture: data.picture,
+                    }),
+                })
+                .then(res => res.json())
+                .then(result => {
+                    if (result.error) throw new Error(result.error);
+                    
+                    // Store tokens
+                    localStorage.setItem('access_token', result.accessToken);
+                    localStorage.setItem('refresh_token', result.refreshToken);
+                    localStorage.setItem('user', JSON.stringify(result.user));
+                    
+                    // All users go to parent dashboard
+                    window.location.href='/dashboard';
+                })
+                .catch(err => {
+                    showError(err.message || 'Google login failed');
+                });
+            } catch (err) {
+                showError('Google login failed. Please try again.');
+            }
+        })();
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            if (html.getAttribute('data-theme') === 'dark') {
+                html.setAttribute('data-theme', 'light');
+                localStorage.setItem('app_theme', 'light');
+                icon.className = 'fa-solid fa-moon';
+            } else {
+                html.setAttribute('data-theme', 'dark');
+                localStorage.setItem('app_theme', 'dark');
+                icon.className = 'fa-solid fa-sun';
+            }
+        }
+
+        const savedTheme = localStorage.getItem('app_theme');
+        if (savedTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.getElementById('themeIcon').className = 'fa-solid fa-sun';
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('forgotForm').style.display = 'none';
+            hideMessages();
+
+            if (tab === 'login') {
+                document.querySelectorAll('.tab')[0].classList.add('active');
+                document.getElementById('loginForm').style.display = 'block';
+            } else if (tab === 'register') {
+                document.querySelectorAll('.tab')[1].classList.add('active');
+                document.getElementById('registerForm').style.display = 'block';
+            }
+        }
+
+        function showForgotPassword() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('forgotForm').style.display = 'block';
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            hideMessages();
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('errorMsg');
+            el.textContent = msg;
+            el.style.display = 'block';
+            document.getElementById('successMsg').style.display = 'none';
+        }
+
+        function showSuccess(msg) {
+            const el = document.getElementById('successMsg');
+            el.textContent = msg;
+            el.style.display = 'block';
+            document.getElementById('errorMsg').style.display = 'none';
+        }
+
+        function hideMessages() {
+            document.getElementById('errorMsg').style.display = 'none';
+            document.getElementById('successMsg').style.display = 'none';
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const btn = document.getElementById('loginBtn');
+            btn.disabled = true;
+            btn.textContent = 'Logging in...';
+            hideMessages();
+
+            try {
+                const res = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: document.getElementById('loginEmail').value,
+                        password: document.getElementById('loginPassword').value,
+                    }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Login failed');
+
+                // Store tokens
+                localStorage.setItem('access_token', data.accessToken);
+                localStorage.setItem('refresh_token', data.refreshToken);
+                localStorage.setItem('user', JSON.stringify(data.user));
+
+                // All users go to parent dashboard
+                window.location.href='/dashboard';
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Login';
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const btn = document.getElementById('regBtn');
+            btn.disabled = true;
+            btn.textContent = 'Creating account...';
+            hideMessages();
+
+            try {
+                const res = await fetch(`${API_BASE}/api/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: document.getElementById('regName').value,
+                        email: document.getElementById('regEmail').value,
+                        password: document.getElementById('regPassword').value,
+                    }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Registration failed');
+
+                showSuccess('Account created! Please login.');
+                setTimeout(() => switchTab('login'), 1500);
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Create Account';
+            }
+        }
+
+        async function handleForgotPassword(e) {
+            e.preventDefault();
+            hideMessages();
+            try {
+                const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: document.getElementById('forgotEmail').value }),
+                });
+                const data = await res.json();
+                showSuccess(data.message || 'If the email exists, a reset link has been sent.');
+            } catch (err) {
+                showError(err.message);
+            }
+        }
+
+        // Check if already logged in
+        (function checkAuth() {
+            const token = localStorage.getItem('access_token');
+            if (token) {
+                // All users go to parent dashboard
+                window.location.href='/dashboard';
+            }
+        })();
+    </script>
+</body>
+</html>

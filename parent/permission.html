@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Permissions</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+body{font-family:Segoe UI,sans-serif;background:#0f0f12;color:#eee;margin:0;padding:16px}
+.header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.header a{color:#a78bfa;text-decoration:none;font-size:1.2rem}
+h1{font-size:1.1rem;margin:0;flex:1}
+.btn{background:#7c3aed;color:#fff;border:none;border-radius:10px;padding:8px 14px;cursor:pointer;font-weight:600}
+.card{background:#1a1a22;border:1px solid #2a2a35;border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.name{font-weight:600}.sub{font-size:.75rem;color:#888;margin-top:2px}
+.ok{color:#22c55e;font-weight:700}.no{color:#ef4444;font-weight:700}
+.status{text-align:center;color:#888;padding:24px}
+</style>
+</head>
+<body>
+<div class="header">
+  <a href="javascript:history.back()"><i class="fa-solid fa-arrow-left"></i></a>
+  <h1>Permissions Status</h1>
+  <button class="btn" onclick="refresh()">Refresh</button>
+</div>
+<div id="list" class="status">Open phone app → Allow Permissions. Then Refresh here.</div>
+<script>
+        // --- AUTH CHECK ---
+        (function(){
+            var t = localStorage.getItem("access_token");
+            if(!t){ window.location.href='/login'; return; }
+            try {
+                var u = JSON.parse(localStorage.getItem("user") || "{}");
+                if(!u.email){ window.location.href='/login'; }
+            } catch(e){ window.location.href='/login'; }
+        })();
+
+const DEVICE_ID = new URLSearchParams(location.search).get('id') || localStorage.getItem('monitoring_id') || '';
+const API = 'https://parents-control-website1.onrender.com';
+async function sendCommand(cmd){
+  if(!DEVICE_ID) return;
+  await fetch(API+'/api/send-command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:DEVICE_ID,command:cmd})});
+}
+async function load(){
+  const el=document.getElementById('list');
+  if(!DEVICE_ID){el.innerHTML='Device ID missing';return;}
+  try{
+    const res=await fetch(API+'/api/get-data/'+encodeURIComponent(DEVICE_ID)+'/permission_status?t='+Date.now());
+    let data=await res.json();
+    if(!Array.isArray(data)||!data.length){el.innerHTML='<div class="status">Waiting… Grant permissions on phone, then Refresh.</div>';return;}
+    el.innerHTML=data.map(p=>{
+      const ok=!!p.granted;
+      return `<div class="card"><div><div class="name">${p.name||p.permission}</div><div class="sub">${p.permission||''}</div></div><div class="${ok?'ok':'no'}">${ok?'ALLOWED':'NOT ALLOWED'}</div></div>`;
+    }).join('');
+  }catch(e){el.innerHTML='<div class="status">Failed to load</div>';}
+}
+async function refresh(){document.getElementById('list').innerHTML='<div class="status">Requesting…</div>';await sendCommand('permission_status');setTimeout(load,2500);setTimeout(load,5000);}
+load();setInterval(load,10000);
+</script>
+</body>
+</html>

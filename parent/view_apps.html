@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Manager - Control Panel</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --list-bg: #1e293b;
+            --list-hover: #2d3e55;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #3b82f6;
+            --danger: #ef4444;
+            --warning: #f59e0b; 
+            --success: #10b981;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Poppins', sans-serif;
+            padding-bottom: 50px;
+        }
+
+        /* HEADER */
+        .app-header {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            padding: 15px 0;
+        }
+
+        .search-container { position: relative; margin-top: 10px; }
+        .search-input {
+            background: #334155; border: none; color: white;
+            padding: 12px 45px; border-radius: 12px; width: 100%;
+        }
+        .search-input:focus { outline: none; box-shadow: 0 0 0 2px var(--accent); }
+        .search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); }
+
+        /* LIST VIEW STYLE */
+        .app-item {
+            background: var(--list-bg);
+            border-radius: 12px;
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .app-item:hover {
+            background: var(--list-hover);
+            transform: translateX(5px);
+            border-color: var(--accent);
+        }
+
+        .app-icon {
+            width: 45px; height: 45px;
+            border-radius: 10px;
+            object-fit: cover;
+            margin-right: 15px;
+            background: #000;
+        }
+
+        .app-details { flex-grow: 1; overflow: hidden; }
+        .app-name { font-weight: 600; font-size: 1rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .pkg-name { font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .arrow-icon { color: var(--text-secondary); font-size: 0.9rem; }
+        
+        /* MODAL STYLES */
+        .modal-content {
+            background-color: #1e293b;
+            color: #fff;
+            border: 1px solid #334155;
+            border-radius: 15px;
+        }
+        .modal-header { border-bottom: 1px solid #334155; }
+        .modal-footer { border-top: 1px solid #334155; display: block; } 
+        .btn-close-white { filter: invert(1); }
+
+        .big-icon {
+            width: 80px; height: 80px;
+            border-radius: 20px;
+            display: block;
+            margin: 10px auto;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .info-row {
+            display: flex; justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.9rem;
+        }
+        .info-label { color: var(--text-secondary); }
+        .info-val { color: #fff; font-family: monospace; }
+
+        /* BUTTONS */
+        .btn-toggle { 
+            width: 100%; 
+            padding: 12px; 
+            border-radius: 8px; 
+            font-weight: 700; 
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            border: none;
+            transition: 0.3s;
+        }
+
+        .btn-state-lock { background: var(--warning); color: #000; }
+        .btn-state-lock:hover { background: #d97706; }
+        
+        .btn-state-unlock { background: var(--success); color: #fff; }
+        .btn-state-unlock:hover { background: #059669; }
+
+        /* Uninstall Button (Red) */
+        .btn-action-uninstall { 
+            width: 100%; 
+            background: rgba(239, 68, 68, 0.15); 
+            border: 1px solid var(--danger);
+            padding: 12px; 
+            border-radius: 8px; 
+            color: var(--danger); 
+            font-weight: 600; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .btn-action-uninstall:hover {
+            background: var(--danger);
+            color: white;
+        }
+        
+        /* Success State for Uninstall Button */
+        .btn-action-sent {
+            background: var(--success) !important;
+            color: white !important;
+            border-color: var(--success) !important;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <div class="container">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <a href="index.html" class="text-secondary me-3 fs-5"><i class="fas fa-arrow-left"></i></a>
+                    <h5 class="m-0 fw-bold">App List</h5>
+                    <span class="badge bg-primary ms-2" id="appCount">0</span>
+                </div>
+                <button class="btn btn-sm btn-outline-light" onclick="manualRefresh()">
+                    <i class="fas fa-sync-alt"></i> <span id="liveText">Live</span>
+                </button>
+            </div>
+            <div class="search-container">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="searchInput" class="search-input" placeholder="Search installed apps..." onkeyup="filterApps()">
+            </div>
+        </div>
+    </header>
+
+    <div class="container mt-3">
+        <div id="appsContainer"></div>
+        <div id="statusMsg" class="text-center text-muted mt-5">Loading...</div>
+    </div>
+
+    <div class="modal fade" id="appDetailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Manage App</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <img id="modalIcon" src="" class="big-icon">
+                    <h4 id="modalName" class="text-center fw-bold mt-2">App Name</h4>
+                    <p id="modalPkg" class="text-center text-secondary small">com.package.name</p>
+
+                    <div class="mt-4">
+                        <div class="info-row">
+                            <span class="info-label">Version</span>
+                            <span class="info-val" id="modalVersion">--</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Installed</span>
+                            <span class="info-val" id="modalDate">--</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Path</span>
+                            <span class="info-val text-truncate" style="max-width: 60%;" id="modalPath">/data/app/...</span>
+                        </div>
+                        <div class="info-row border-0">
+                            <span class="info-label">Usage Today</span>
+                            <span class="info-val" id="modalUsage" style="color: #10b981;">--</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button id="btnToggleLock" class="btn-toggle btn-state-lock" onclick="toggleAppLock()">
+                        <i class="fas fa-ban"></i> <span>LOCK APP</span>
+                    </button>
+                    
+                    <button id="btnUninstall" class="btn-action-uninstall" onclick="sendUninstallCommand()">
+                        <i class="fas fa-trash"></i> <span>Uninstall App</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
+    <script src="socket.io.min.js" defer></script>
+    <!-- Local socket.io.min.js -->
+    <script>
+        // --- AUTH CHECK ---
+        (function(){
+            var t = localStorage.getItem("access_token");
+            if(!t){ window.location.href='/login'; return; }
+            try {
+                var u = JSON.parse(localStorage.getItem("user") || "{}");
+                if(!u.email){ window.location.href='/login'; }
+            } catch(e){ window.location.href='/login'; }
+        })();
+
+        const SERVER_URL = "https://parents-control-website1.onrender.com";
+        const urlParams = new URLSearchParams(window.location.search);
+        const DEVICE_ID = urlParams.get('id') || urlParams.get('deviceId');
+        const storageKey = `apps_${DEVICE_ID}`;
+        const lockedListKey = `locked_apps_${DEVICE_ID}`;
+        
+        let allApps = []; // This will hold the MERGED list
+        let currentAppPkg = ""; 
+        let refreshInterval;
+        let appsRequestInFlight = false;
+        let appsSocket = null;
+        let lastRenderedSignature = '';
+        let lockedApps = JSON.parse(localStorage.getItem(lockedListKey)) || [];
+
+        document.addEventListener("DOMContentLoaded", () => {
+            if (!DEVICE_ID) {
+                alert("ID Missing!");
+                window.location.href = "index.html";
+                return;
+            }
+            loadFromStorage();
+            startLiveUpdates();
+        });
+
+        function startLiveUpdates() {
+            fetchApps();
+            refreshInterval = setInterval(() => { fetchApps(); }, 4000);
+            if (typeof io === 'function') {
+                appsSocket = io(SERVER_URL, { transports: ['websocket', 'polling'], reconnection: true });
+                appsSocket.on('connect', () => appsSocket.emit('join', DEVICE_ID));
+                appsSocket.on('device_data_update', data => {
+                    if (data && String(data.device_id).toUpperCase() === String(DEVICE_ID).toUpperCase() && data.type === 'apps') fetchApps();
+                });
+            }
+            // Ask the child once after the page is ready; the socket event or the
+            // 10-second fallback refresh will render the complete snapshot.
+            sendCommand();
+        }
+
+        async function manualRefresh() {
+            document.getElementById("liveText").innerText = "Updating...";
+            await sendCommand();
+            for (let attempt = 0; attempt < 8; attempt++) {
+                await new Promise(resolve => setTimeout(resolve, 750));
+                await fetchApps();
+            }
+        }
+
+        function loadFromStorage() {
+            const savedData = localStorage.getItem(storageKey);
+            if (savedData) {
+                allApps = JSON.parse(savedData);
+                lastRenderedSignature = allApps.map(app => `${app.packageName}:${app.versionName || ''}`).sort().join('|');
+                renderApps(allApps);
+            }
+        }
+
+        function sendCommand() {
+            return fetch(`${SERVER_URL}/api/send-command`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: DEVICE_ID, command: 'apps' })
+            }).catch(e => console.log(e));
+        }
+
+        // 🔥 FIXED: Smart Merging Logic (Prevents dropping from 50 to 47)
+        async function fetchApps() {
+            if (appsRequestInFlight) return;
+            appsRequestInFlight = true;
+            try {
+                const res = await fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/apps?t=${Date.now()}`, { cache: 'no-store' });
+                const newData = await res.json();
+                document.getElementById("liveText").innerText = "Live";
+                if (!Array.isArray(newData) || newData.length === 0) return;
+
+                // The API returns a complete snapshot. Replacing the cache prevents
+                // stale entries and avoids the old 45/115 count oscillation.
+                const unique = new Map();
+                (allApps || []).forEach(app => {
+                    if (app && app.packageName) unique.set(app.packageName, app);
+                });
+                newData.forEach(app => {
+                    if (app && app.packageName) unique.set(app.packageName, app);
+                });
+                const nextApps = Array.from(unique.values());
+                const signature = nextApps.map(app => `${app.packageName}:${app.versionName || ''}`).sort().join('|');
+                allApps = nextApps;
+                localStorage.setItem(storageKey, JSON.stringify(allApps));
+                document.getElementById("statusMsg").style.display = 'none';
+                if (signature !== lastRenderedSignature || document.getElementById('searchInput').value === "") {
+                    renderApps(allApps);
+                    lastRenderedSignature = signature;
+                }
+            } catch (e) {
+                document.getElementById("liveText").innerText = "Offline";
+            } finally {
+                appsRequestInFlight = false;
+            }
+        }
+
+        function renderApps(data) {
+            const container = document.getElementById("appsContainer");
+            document.getElementById("appCount").innerText = data.length;
+            container.innerHTML = "";
+
+            // Sort Alphabetically
+            data.sort((a, b) => a.appName.localeCompare(b.appName));
+
+            data.forEach(app => {
+                let iconSrc = app.icon && app.icon.length > 20 
+                    ? `data:image/png;base64,${app.icon}` 
+                    : 'https://cdn-icons-png.flaticon.com/512/160/160139.png';
+
+                const isLocked = lockedApps.includes(app.packageName);
+                const lockIcon = isLocked ? '<i class="fas fa-lock text-warning me-2"></i>' : '';
+
+                const div = document.createElement("div");
+                div.className = "app-item";
+                div.onclick = function() { openDetailsModal(app); };
+
+                div.innerHTML = `
+                    <img src="${iconSrc}" class="app-icon">
+                    <div class="app-details">
+                        <div class="app-name">${app.appName}</div>
+                        <div class="pkg-name">${app.packageName}</div>
+                        <div class="pkg-name" style="color: ${app.usageMinutes > 0 ? '#10b981' : '#64748b'}; margin-top: 2px;">
+                            <i class="fas fa-clock" style="font-size: 0.65rem;"></i> 
+                            ${app.usageMinutes > 0 ? 'Usage Today: ' + app.usageMinutes + ' min' : 'No usage data'}
+                            ${app.isLive ? ' <span style="color:#10b981;">● Active</span>' : ''}
+                        </div>
+                    </div>
+                    ${lockIcon}
+                    <i class="fas fa-chevron-right arrow-icon"></i>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function filterApps() {
+            const q = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = allApps.filter(app => 
+                (app.appName && app.appName.toLowerCase().includes(q)) || 
+                (app.packageName && app.packageName.toLowerCase().includes(q))
+            );
+            renderApps(filtered);
+        }
+
+        function openDetailsModal(app) {
+            currentAppPkg = app.packageName;
+
+            document.getElementById("modalName").innerText = app.appName;
+            document.getElementById("modalPkg").innerText = app.packageName;
+            
+            let iconSrc = app.icon && app.icon.length > 20 
+                    ? `data:image/png;base64,${app.icon}` 
+                    : 'https://cdn-icons-png.flaticon.com/512/160/160139.png';
+            document.getElementById("modalIcon").src = iconSrc;
+            document.getElementById("modalVersion").innerText = app.versionName || "Unknown";
+            document.getElementById("modalDate").innerText = app.installDate || "N/A";
+            document.getElementById("modalPath").innerText = `/data/user/0/${app.packageName}`;
+            
+            // Show usage time in modal
+            const usageEl = document.getElementById("modalUsage");
+            if (usageEl) {
+                usageEl.innerText = app.usageMinutes > 0 ? app.usageMinutes + ' minutes today' : 'No usage data available';
+            }
+
+            // Reset Uninstall Button State every time modal opens
+            resetUninstallButton();
+            
+            updateToggleButtonUI();
+            const myModal = new bootstrap.Modal(document.getElementById('appDetailModal'));
+            myModal.show();
+        }
+
+        function updateToggleButtonUI() {
+            const btn = document.getElementById("btnToggleLock");
+            const isLocked = lockedApps.includes(currentAppPkg);
+
+            if (isLocked) {
+                btn.className = "btn-toggle btn-state-unlock";
+                btn.innerHTML = '<i class="fas fa-unlock"></i> UNLOCK APP';
+            } else {
+                btn.className = "btn-toggle btn-state-lock";
+                btn.innerHTML = '<i class="fas fa-ban"></i> LOCK APP';
+            }
+        }
+
+        function toggleAppLock() {
+            if(!currentAppPkg) return;
+            const isLocked = lockedApps.includes(currentAppPkg);
+
+            if (isLocked) {
+                sendCommandToDevice(`enable:${currentAppPkg}`);
+                lockedApps = lockedApps.filter(pkg => pkg !== currentAppPkg);
+            } else {
+                sendCommandToDevice(`disable:${currentAppPkg}`);
+                lockedApps.push(currentAppPkg);
+            }
+            localStorage.setItem(lockedListKey, JSON.stringify(lockedApps));
+            updateToggleButtonUI();
+            renderApps(allApps);
+        }
+
+        // 🔥 FIXED: Uninstall Button Reset Logic
+        function sendUninstallCommand() {
+            if(!currentAppPkg) return;
+            
+            const btn = document.getElementById('btnUninstall');
+            
+            // Prevent multiple clicks immediately
+            if(btn.disabled) return;
+
+            // 1. Send Command
+            sendCommandToDevice(`uninstall:${currentAppPkg}`);
+
+            // 2. Change UI to "Sent" (Green)
+            btn.innerHTML = '<i class="fas fa-check"></i> Command Sent!';
+            btn.classList.add('btn-action-sent');
+            btn.classList.remove('btn-action-uninstall'); // remove red style temporarily
+            btn.disabled = true; // Disable button to prevent spam
+
+            // 3. Revert back to Normal after 2.5 seconds
+            setTimeout(() => {
+                resetUninstallButton();
+            }, 2500);
+        }
+
+        function resetUninstallButton() {
+            const btn = document.getElementById('btnUninstall');
+            btn.innerHTML = '<i class="fas fa-trash"></i> Uninstall App';
+            btn.classList.remove('btn-action-sent');
+            btn.classList.add('btn-action-uninstall'); // Add red style back
+            btn.disabled = false; // Enable button again
+        }
+
+        function sendCommandToDevice(cmd) {
+            fetch(`${SERVER_URL}/api/send-command`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: DEVICE_ID, command: cmd })
+            });
+        }
+    </script>
+</body>
+</html>

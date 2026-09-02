@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Admin | Device Control Center</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0c;
+            --card-bg: #16161a;
+            --accent: #00d2ff;
+            --online: #00ff88;
+            --offline: #ff4b2b;
+            --text: #ffffff;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0; padding: 20px;
+            background-image: radial-gradient(circle at top right, #1a1a2e, #0a0a0c);
+        }
+
+        .header {
+            text-align: center; margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-weight: 600; font-size: 2.5rem; margin: 0;
+            background: linear-gradient(to right, #00d2ff, #3a7bd5);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .container {
+            max-width: 900px; margin: 0 auto;
+            display: grid; gap: 20px;
+        }
+
+        .device-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 20px; padding: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            transition: 0.3s; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .device-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+        }
+
+        .dev-info { display: flex; align-items: center; gap: 20px; }
+
+        .dev-icon {
+            width: 60px; height: 60px; background: rgba(0, 210, 255, 0.1);
+            border-radius: 15px; display: flex; align-items: center; justify-content: center;
+            font-size: 1.8rem; color: var(--accent);
+        }
+
+        .dev-details h3 { margin: 0; font-size: 1.2rem; }
+        .dev-details p { margin: 5px 0 0; font-size: 0.85rem; color: #888; }
+
+        .status-badge {
+            padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold;
+            display: inline-block; margin-top: 10px;
+        }
+
+        .status-online { background: rgba(0, 255, 136, 0.1); color: var(--online); }
+        .status-offline { background: rgba(255, 75, 43, 0.1); color: var(--offline); }
+
+        .controls { display: flex; gap: 10px; }
+
+        .btn {
+            border: none; padding: 12px 18px; border-radius: 12px;
+            cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;
+            transition: 0.2s; font-family: 'Poppins', sans-serif;
+        }
+
+        .btn-silent { background: #ff4b2b; color: white; }
+        .btn-normal { background: #3a7bd5; color: white; }
+        .btn:active { transform: scale(0.95); }
+        .btn:hover { filter: brightness(1.2); }
+
+        .battery-container { display: flex; align-items: center; gap: 5px; color: #bbb; font-size: 0.9rem; }
+
+        @media (max-width: 600px) {
+            .device-card { flex-direction: column; text-align: center; gap: 20px; }
+            .dev-info { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1><i class="fa-solid fa-shield-halved"></i> Control Center</h1>
+        <p style="color: #666;">Monitoring All Connected Devices</p>
+    </div>
+
+    <div id="device-list" class="container">
+        </div>
+
+    <script>
+        const API_URL = "https://parents-control-website1.onrender.com";
+
+        async function fetchDevices() {
+            try {
+                const res = await fetch(`${API_URL}/api/admin/all-devices`);
+                const devices = await res.json();
+                const list = document.getElementById("device-list");
+                
+                if (Object.keys(devices).length === 0) {
+                    list.innerHTML = `<div style="text-align:center; padding:50px; color:#555;">No devices registered yet.</div>`;
+                    return;
+                }
+
+                list.innerHTML = "";
+                Object.values(devices).forEach(dev => {
+                    const isOnline = (Date.now() - dev.lastSeen < 20000);
+                    const statusClass = isOnline ? "status-online" : "status-offline";
+                    const statusText = isOnline ? "● ONLINE" : "○ OFFLINE";
+                    const batteryIcon = dev.battery > 80 ? "fa-battery-full" : dev.battery > 50 ? "fa-battery-three-quarters" : "fa-battery-quarter";
+
+                    list.innerHTML += `
+                        <div class="device-card">
+                            <div class="dev-info">
+                                <div class="dev-icon">
+                                    <i class="fa-solid fa-mobile-screen-button"></i>
+                                </div>
+                                <div class="dev-details">
+                                    <h3>${dev.model}</h3>
+                                    <p>ID: <span style="color:var(--accent)">${dev.id}</span> | Android ${dev.version}</p>
+                                    <div class="battery-container">
+                                        <i class="fa-solid ${batteryIcon}"></i> ${dev.battery}%
+                                        ${dev.charging ? '<i class="fa-solid fa-bolt" style="color:#ffcc00"></i>' : ''}
+                                    </div>
+                                    <span class="status-badge ${statusClass}">${statusText}</span>
+                                </div>
+                            </div>
+                            <div class="controls">
+                                <button class="btn btn-silent" onclick="sendCommand('${dev.id}', 'silent')">
+                                    <i class="fa-solid fa-volume-xmark"></i> Silent
+                                </button>
+                                <button class="btn btn-normal" onclick="sendCommand('${dev.id}', 'normal')">
+                                    <i class="fa-solid fa-volume-high"></i> Normal
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                console.error("Error fetching devices", e);
+            }
+        }
+
+        async function sendCommand(id, cmd) {
+            try {
+                const res = await fetch(`${API_URL}/api/send-command`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ device_id: id, command: cmd })
+                });
+                if(res.ok) alert(`Command "${cmd}" sent to ${id}`);
+            } catch (e) { alert("Failed to send command"); }
+        }
+
+        setInterval(fetchDevices, 5000);
+        fetchDevices();
+    </script>
+</body>
+</html>

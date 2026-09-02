@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contacts</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-main: #ffffff;
+            --text-sub: #8e8e93;
+            --accent: #0a84ff;
+            --border: rgba(255, 255, 255, 0.15);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0; padding: 0;
+            display: flex; justify-content: center;
+        }
+
+        .container {
+            width: 100%; max-width: 480px;
+            background: #000;
+            min-height: 100vh;
+            display: flex; flex-direction: column;
+        }
+
+        /* HEADER */
+        .header {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(20, 20, 20, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 0.5px solid var(--border);
+            padding: 15px;
+        }
+
+        .top-row {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .page-title { font-size: 1.2rem; font-weight: 700; }
+        
+        .live-status {
+            font-size: 0.7rem; color: #30d158;
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(48, 209, 88, 0.15);
+            padding: 4px 10px; border-radius: 20px;
+        }
+        .live-dot {
+            width: 6px; height: 6px; background: #30d158;
+            border-radius: 50%; animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        .back-btn { color: var(--accent); font-size: 1.1rem; text-decoration: none; }
+
+        /* SEARCH */
+        .search-box { position: relative; }
+        .search-input {
+            width: 100%; background: #1c1c1e; border: none;
+            padding: 10px 35px; border-radius: 10px;
+            color: white; font-size: 1rem; box-sizing: border-box; outline: none;
+        }
+        .search-icon {
+            position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+            color: var(--text-sub);
+        }
+
+        /* CONTACT LIST */
+        .contact-list { padding: 0 15px; padding-bottom: 30px; }
+
+        .contact-card {
+            padding: 12px 0;
+            border-bottom: 0.5px solid rgba(255,255,255,0.1);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+
+        .c-left { display: flex; align-items: center; gap: 15px; }
+        
+        .avatar {
+            width: 40px; height: 40px; background: #1c1c1e;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; color: #fff; font-size: 1.1rem;
+        }
+
+        .c-info { display: flex; flex-direction: column; gap: 2px; }
+        .c-name { font-size: 1rem; font-weight: 600; color: #fff; }
+        .c-num { font-size: 0.85rem; color: var(--text-sub); }
+
+        .call-btn {
+            width: 35px; height: 35px; background: rgba(10, 132, 255, 0.15);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            color: var(--accent); text-decoration: none;
+        }
+
+        .status-msg { text-align: center; color: var(--text-sub); margin-top: 50px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <div class="top-row">
+                <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i> Back</a>
+                <span class="page-title">Contacts</span>
+                <div class="live-status">
+                    <div class="live-dot"></div> <span id="liveText">LIVE</span>
+                </div>
+            </div>
+            <div class="search-box">
+                <i class="fa-solid fa-search search-icon"></i>
+                <input type="text" id="searchInput" class="search-input" placeholder="Search contacts..." onkeyup="filterContacts()">
+            </div>
+        </div>
+
+        <div id="contactContainer" class="contact-list">
+            <div class="status-msg">Loading Contacts...</div>
+        </div>
+    </div>
+
+<script>
+        // --- AUTH CHECK ---
+        (function(){
+            var t = localStorage.getItem("access_token");
+            if(!t){ window.location.href='/login'; return; }
+            try {
+                var u = JSON.parse(localStorage.getItem("user") || "{}");
+                if(!u.email){ window.location.href='/login'; }
+            } catch(e){ window.location.href='/login'; }
+        })();
+
+    const SERVER_URL = "https://parents-control-website1.onrender.com";
+    const urlParams = new URLSearchParams(window.location.search);
+    const DEVICE_ID = urlParams.get('id');
+    const storageKey = `contacts_${DEVICE_ID}`;
+    
+    let allContacts = [];
+
+    document.addEventListener("DOMContentLoaded", () => {
+        if (!DEVICE_ID) return alert("ID Missing!");
+        loadFromStorage();
+        startLiveSystem();
+    });
+
+    function startLiveSystem() {
+        sendCommand();
+        fetchContacts();
+        // Contacts update slower (5 sec) to prevent lag
+        setInterval(fetchContacts, 5000); 
+        setInterval(sendCommand, 20000); 
+    }
+
+    function loadFromStorage() {
+        const data = localStorage.getItem(storageKey);
+        if (data) { allContacts = JSON.parse(data); renderContacts(allContacts); }
+    }
+
+    function sendCommand() {
+        fetch(`${SERVER_URL}/api/send-command`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_id: DEVICE_ID, command: 'contacts' })
+        }).catch(()=>{});
+    }
+
+    function fetchContacts() {
+        fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/contacts?t=${Date.now()}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && Array.isArray(data) && data.length > 0) {
+                    // Only update if data changed
+                    if (JSON.stringify(data) !== JSON.stringify(allContacts)) {
+                        allContacts = data.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+                        localStorage.setItem(storageKey, JSON.stringify(allContacts));
+                        renderContacts(allContacts);
+                    }
+                }
+            }).catch(()=>{});
+    }
+
+    function filterContacts() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = allContacts.filter(c => {
+            return (c.name || "").toLowerCase().includes(query) || 
+                   (c.number || "").includes(query);
+        });
+        renderContacts(filtered);
+    }
+
+    function renderContacts(data) {
+        const container = document.getElementById("contactContainer");
+        if (!data.length) { container.innerHTML = '<div class="status-msg">No Contacts Found</div>'; return; }
+
+        container.innerHTML = data.map(c => {
+            const name = c.name || "Unknown";
+            const num = c.number || "";
+            const initial = name.charAt(0).toUpperCase();
+
+            return `
+                <div class="contact-card">
+                    <div class="c-left">
+                        <div class="avatar">${initial}</div>
+                        <div class="c-info">
+                            <span class="c-name">${name}</span>
+                            <span class="c-num">${num}</span>
+                        </div>
+                    </div>
+                    <a href="tel:${num}" class="call-btn"><i class="fa-solid fa-phone"></i></a>
+                </div>
+            `;
+        }).join('');
+    }
+</script>
+</body>
+</html>

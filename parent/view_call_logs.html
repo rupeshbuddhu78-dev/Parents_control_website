@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call History</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-main: #ffffff;
+            --text-sub: #8e8e93;
+            --incoming: #30d158;
+            --outgoing: #0a84ff;
+            --missed: #ff453a;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: linear-gradient(135deg, #000000 0%, #1c1c1e 100%);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0; padding: 0;
+            display: flex; justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%; max-width: 480px;
+            background: #000;
+            display: flex; flex-direction: column;
+            position: relative;
+            min-height: 100vh;
+        }
+
+        /* --- HEADER --- */
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 20px;
+            border-bottom: 0.5px solid rgba(255, 255, 255, 0.15);
+            background: rgba(20, 20, 20, 0.95);
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left, .header-right { display: flex; align-items: center; gap: 10px; }
+
+        .back-btn {
+            color: var(--outgoing); font-size: 1.2rem;
+            text-decoration: none; width: 30px; height: 30px;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .page-title { 
+            position: absolute; left: 50%; transform: translateX(-50%);
+            font-size: 1.1rem; font-weight: 600; color: var(--text-main);
+        }
+
+        .live-status {
+            font-size: 0.65rem; color: var(--incoming);
+            display: flex; align-items: center; gap: 5px;
+            background: rgba(48, 209, 88, 0.1);
+            padding: 3px 8px; border-radius: 12px;
+        }
+
+        .live-dot {
+            width: 6px; height: 6px; background-color: var(--incoming);
+            border-radius: 50%;
+            box-shadow: 0 0 5px var(--incoming);
+            animation: pulse 1.0s infinite; /* Faster Pulse */
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; }
+        }
+
+        .refresh-btn {
+            background: transparent; border: none;
+            color: var(--text-main); font-size: 1rem; cursor: pointer; padding: 0;
+        }
+
+        /* --- LOG LIST --- */
+        .log-list { 
+            display: flex; flex-direction: column; 
+            padding-bottom: 50px;
+        }
+
+        .log-card {
+            padding: 12px 20px;
+            display: flex; align-items: center;
+            border-bottom: 0.5px solid rgba(255,255,255,0.1);
+        }
+        
+        .log-icon {
+            font-size: 0.9rem; margin-right: 15px; width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .log-icon.incoming { color: var(--text-main); }
+        .log-icon.outgoing { color: var(--text-main); }
+        .log-icon.missed { color: var(--missed); }
+
+        /* Main Info Block */
+        .log-info { 
+            flex: 1; 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            gap: 4px;
+        }
+        
+        /* Top Row: Name + Date */
+        .log-top-row {
+            display: flex; 
+            justify-content: space-between; 
+            align-items: baseline;
+            width: 100%;
+        }
+
+        .log-name { 
+            font-size: 1rem; font-weight: 600; 
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            color: var(--text-main);
+            max-width: 50%;
+        }
+        
+        .log-name.is-missed { color: var(--missed); }
+
+        /* Date Style */
+        .log-date {
+            font-size: 0.75rem; 
+            color: var(--text-sub);
+            white-space: nowrap;
+            margin-left: auto;
+        }
+
+        /* Bottom Row: Number only */
+        .log-details-row {
+            font-size: 0.85rem; color: var(--text-sub);
+            display: flex; align-items: center;
+        }
+
+        .call-action {
+            width: 35px; height: 35px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--outgoing); font-size: 1rem;
+            text-decoration: none; margin-left: 10px;
+            background: rgba(255,255,255,0.1); border-radius: 50%;
+        }
+
+        .status-msg { text-align: center; color: var(--text-sub); margin-top: 50px; }
+        .debug-info { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
+            </div>
+            
+            <span class="page-title">Call History</span>
+
+            <div class="header-right">
+                <div class="live-status">
+                    <div class="live-dot"></div>
+                    <span id="liveText">LIVE</span>
+                </div>
+                <button onclick="manualRefresh()" class="refresh-btn"><i class="fa-solid fa-rotate"></i></button>
+            </div>
+        </div>
+
+        <div class="debug-info" id="debugBox"></div>
+        <div class="log-list" id="logsContainer"></div>
+    </div>
+
+    <script>
+        // --- AUTH CHECK ---
+        (function(){
+            var t = localStorage.getItem("access_token");
+            if(!t){ window.location.href='/login'; return; }
+            try {
+                var u = JSON.parse(localStorage.getItem("user") || "{}");
+                if(!u.email){ window.location.href='/login'; }
+            } catch(e){ window.location.href='/login'; }
+        })();
+
+        const SERVER_URL = "https://parents-control-website1.onrender.com";
+        const urlParams = new URLSearchParams(window.location.search);
+        const DEVICE_ID = urlParams.get('id');
+        const storageKey = `calls_${DEVICE_ID}`;
+        let cachedContacts = [];
+        let refreshInterval;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            if (!DEVICE_ID) {
+                alert("ID Missing!");
+                window.location.href = "index.html";
+                return;
+            }
+            detectContactsData();
+            loadFromStorage();
+            sendCommand();
+            startLiveUpdates();
+        });
+
+        // --- FAST LIVE UPDATE (1.5 SECONDS) ---
+        function startLiveUpdates() {
+            fetchLogs();
+            // Yahan 3000 ki jagah 1500 kar diya hai (FAST)
+            refreshInterval = setInterval(() => { fetchLogs(); }, 1500); 
+        }
+
+        function manualRefresh() {
+            document.getElementById("liveText").innerText = "Updating...";
+            fetchLogs();
+        }
+
+        // --- CONTACTS ---
+        function detectContactsData() {
+            try {
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key.toLowerCase().includes("contact")) {
+                        const rawData = localStorage.getItem(key);
+                        if (rawData) {
+                            const parsed = JSON.parse(rawData);
+                            if (Array.isArray(parsed) && parsed.length > 0) {
+                                cachedContacts = parsed;
+                                return;
+                            }
+                        }
+                    }
+                }
+            } catch (e) { console.error("Contacts error", e); }
+        }
+
+        function findContactName(phoneNumber) {
+            if (!cachedContacts || cachedContacts.length === 0) return null;
+            try {
+                const cleanLogNum = phoneNumber.replace(/\D/g, '').slice(-10); 
+                const match = cachedContacts.find(c => {
+                    const contactPhone = c.phone || c.number || ""; 
+                    if(!contactPhone) return false;
+                    const cleanContactNum = contactPhone.toString().replace(/\D/g, '').slice(-10);
+                    return cleanContactNum === cleanLogNum;
+                });
+                return match ? (match.name || match.display_name) : null;
+            } catch (e) { return null; }
+        }
+
+        // --- DATE PARSING (FIXED FOR 11 JAN vs 1 NOV) ---
+        function getValidDate(log) {
+            let raw = log.date || log.timestamp || log.time || log.created_at;
+            if (!raw) return null;
+
+            // Step 1: Check Number (Timestamp)
+            let num = Number(raw);
+            if (!isNaN(num)) {
+                if (num < 1000000000000) num *= 1000;
+                return new Date(num);
+            }
+
+            // Step 2: Check String (Fix for "11/01" -> Jan vs Nov)
+            if (typeof raw === "string") {
+                // Agar date format DD/MM/YYYY hai (slashes ya dashes ke sath)
+                // Hum usko MM/DD/YYYY bana denge taaki '11/01' 11 Jan bane (na ki 1 Nov)
+                const dateParts = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(.*)$/);
+                if (dateParts) {
+                    const day = parseInt(dateParts[1]);
+                    const month = parseInt(dateParts[2]);
+                    const year = parseInt(dateParts[3]);
+                    const timePart = dateParts[4] || "";
+                    
+                    // Force Format: Month/Day/Year (Standard JS)
+                    return new Date(`${month}/${day}/${year}${timePart}`);
+                }
+                
+                // Normal Date Parsing fallback
+                let d = new Date(raw);
+                if (!isNaN(d.getTime())) return d;
+            }
+
+            return null;
+        }
+
+        function formatCompactDate(dateObj) {
+            if (!dateObj) return "";
+            
+            const day = dateObj.getDate();
+            const month = dateObj.toLocaleString('en-US', { month: 'short' });
+            const time = dateObj.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+            return `${day} ${month}, ${time}`;
+        }
+
+        // --- FETCH & RENDER ---
+        function loadFromStorage() {
+            const savedData = localStorage.getItem(storageKey);
+            if (savedData) {
+                renderLogs(JSON.parse(savedData));
+            } else {
+                document.getElementById("logsContainer").innerHTML = `<div class="status-msg"><p>Connecting...</p></div>`;
+            }
+        }
+
+        function sendCommand() {
+            fetch(`${SERVER_URL}/api/send-command`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: DEVICE_ID, command: 'call_logs' })
+            });
+        }
+
+        function fetchLogs() {
+            const timestamp = new Date().getTime();
+            fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/call_logs?t=${timestamp}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("liveText").innerText = `LIVE`;
+                    if (data && Array.isArray(data) && data.length > 0) {
+                        localStorage.setItem(storageKey, JSON.stringify(data));
+                        detectContactsData();
+                        renderLogs(data);
+                    }
+                })
+                .catch(err => {
+                    document.getElementById("liveText").innerText = "Connecting...";
+                });
+        }
+
+        function renderLogs(data) {
+            const container = document.getElementById("logsContainer");
+            if(!container) return;
+
+            data.forEach(log => {
+                log._validDate = getValidDate(log);
+                log._sortTime = log._validDate ? log._validDate.getTime() : 0;
+            });
+
+            // Newest call first
+            data.sort((a, b) => b._sortTime - a._sortTime);
+
+            let html = "";
+            
+            data.forEach(log => {
+                const type = (log.type || "").toLowerCase();
+                let iconClass = "incoming";
+                let iconSymbol = "fa-arrow-down";
+                let isMissed = false;
+
+                if(type.includes("outgoing")) {
+                    iconClass = "outgoing"; iconSymbol = "fa-arrow-up";
+                } else if(type.includes("missed") || type.includes("rejected")) {
+                    iconClass = "missed"; iconSymbol = "fa-xmark"; isMissed = true;
+                }
+
+                const matchedName = findContactName(log.number);
+                const nameColorClass = isMissed ? "is-missed" : "";
+
+                let mainText = matchedName ? matchedName : log.number;
+                let subText = matchedName ? log.number : "Unsaved";
+                
+                const dateStr = formatCompactDate(log._validDate);
+
+                html += `
+                    <div class="log-card">
+                        <div class="log-icon ${iconClass}">
+                            <i class="fa-solid ${iconSymbol}"></i>
+                        </div>
+                        
+                        <div class="log-info">
+                            <div class="log-top-row">
+                                <span class="log-name ${nameColorClass}">${mainText}</span>
+                                <span class="log-date">${dateStr}</span>
+                            </div>
+                            
+                            <div class="log-details-row">
+                                <span>${subText}</span>
+                            </div>
+                        </div>
+
+                        <a href="tel:${log.number}" class="call-action">
+                            <i class="fa-solid fa-phone"></i>
+                        </a>
+                    </div>`;
+            });
+
+            container.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

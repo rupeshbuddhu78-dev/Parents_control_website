@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Verification - Parents Control</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .card {
+            background: #fff;
+            border-radius: 24px;
+            padding: 40px 32px;
+            max-width: 420px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+        }
+        
+        /* Loading State */
+        .loading-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        .loading-icon i {
+            font-size: 2rem;
+            color: #fff;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        
+        /* Success State */
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00c853 0%, #00e676 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            animation: scaleIn 0.5s ease-out;
+        }
+        .success-icon i {
+            font-size: 2.5rem;
+            color: #fff;
+        }
+        @keyframes scaleIn { from { transform: scale(0); } to { transform: scale(1); } }
+        
+        /* Error State */
+        .error-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff5252 0%, #ff1744 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            animation: scaleIn 0.5s ease-out;
+        }
+        .error-icon i {
+            font-size: 2.5rem;
+            color: #fff;
+        }
+        
+        /* Pending State */
+        .pending-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff9800 0%, #ffc107 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+        }
+        .pending-icon i {
+            font-size: 2.5rem;
+            color: #fff;
+        }
+        
+        .title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #1a1a2e;
+            margin-bottom: 12px;
+        }
+        .message {
+            font-size: 0.95rem;
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        
+        /* Details Box */
+        .details-box {
+            background: #f8f9fa;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            text-align: left;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        .detail-row:last-child { border-bottom: none; }
+        .detail-label {
+            font-size: 0.85rem;
+            color: #666;
+            font-weight: 600;
+        }
+        .detail-value {
+            font-size: 0.85rem;
+            color: #1a1a2e;
+            font-weight: 700;
+        }
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            width: 100%;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            margin-top: 12px;
+        }
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .countdown {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card" id="mainCard">
+        <div class="loading-icon" id="statusIcon">
+            <i class="fa-solid fa-spinner"></i>
+        </div>
+        <h1 class="title" id="title">Verifying Payment...</h1>
+        <p class="message" id="message">Please wait while we confirm your payment with Cashfree.</p>
+        <div id="detailsContainer"></div>
+        <div id="buttonsContainer"></div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        const params = new URLSearchParams(window.location.search);
+        const orderId = params.get('order_id');
+        let token = localStorage.getItem('access_token');
+        let isVerifying = false;
+        let verificationAttempts = 0;
+        const MAX_AUTOMATIC_RETRIES = 5;
+
+        async function refreshAccessToken() {
+            const refreshToken = localStorage.getItem('refresh_token');
+            if (!refreshToken) return false;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refreshToken })
+                });
+                if (!res.ok) return false;
+                const data = await res.json();
+                if (!data.accessToken) return false;
+                token = data.accessToken;
+                localStorage.setItem('access_token', data.accessToken);
+                if (data.refreshToken) localStorage.setItem('refresh_token', data.refreshToken);
+                return true;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        async function authFetch(url, options = {}) {
+            const headers = { ...(options.headers || {}), Authorization: `Bearer ${token || ''}` };
+            let res = await fetch(url, { ...options, headers });
+            if (res.status === 401 && await refreshAccessToken()) {
+                headers.Authorization = `Bearer ${token}`;
+                res = await fetch(url, { ...options, headers });
+            }
+            return res;
+        }
+
+        const statusIcon = document.getElementById('statusIcon');
+        const title = document.getElementById('title');
+        const message = document.getElementById('message');
+        const detailsContainer = document.getElementById('detailsContainer');
+        const buttonsContainer = document.getElementById('buttonsContainer');
+
+        function showSuccess(data) {
+            statusIcon.className = 'success-icon';
+            statusIcon.innerHTML = '<i class="fa-solid fa-check"></i>';
+            title.textContent = 'Payment Successful!';
+            message.textContent = 'Your premium subscription is now active.';
+
+            if (data) {
+                detailsContainer.innerHTML = `
+                    <div class="details-box">
+                        <div class="detail-row">
+                            <span class="detail-label">Plan</span>
+                            <span class="detail-value">${data.planName || 'Premium'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Amount</span>
+                            <span class="detail-value">₹${data.amount || '--'}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Order ID</span>
+                            <span class="detail-value" style="font-size:0.75rem;">${data.orderId || '--'}</span>
+                        </div>
+                        ${data.expiryDate ? `
+                        <div class="detail-row">
+                            <span class="detail-label">Valid Until</span>
+                            <span class="detail-value">${new Date(data.expiryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            buttonsContainer.innerHTML = `
+                <a href="/dashboard" class="btn btn-primary">
+                    <i class="fa-solid fa-home"></i>
+                    Go to Dashboard
+                </a>
+            `;
+        }
+
+        function showError(msg) {
+            statusIcon.className = 'error-icon';
+            statusIcon.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+            title.textContent = 'Payment Failed';
+            message.textContent = msg || 'Your payment could not be verified. Please try again.';
+
+            buttonsContainer.innerHTML = `
+                <a href="/plans" class="btn btn-primary">
+                    <i class="fa-solid fa-rotate"></i>
+                    Try Again
+                </a>
+                <a href="/dashboard" class="btn btn-secondary">
+                    <i class="fa-solid fa-home"></i>
+                    Back to Dashboard
+                </a>
+            `;
+        }
+
+        function showPending() {
+            statusIcon.className = 'pending-icon';
+            statusIcon.innerHTML = '<i class="fa-solid fa-clock"></i>';
+            title.textContent = 'Payment Pending';
+            message.textContent = 'Your payment is being processed. Please check back in a few minutes.';
+
+            buttonsContainer.innerHTML = `
+                <button class="btn btn-primary" onclick="verifyPayment()">
+                    <i class="fa-solid fa-rotate"></i>
+                    Check Status
+                </button>
+                <a href="/dashboard" class="btn btn-secondary">
+                    <i class="fa-solid fa-home"></i>
+                    Back to Dashboard
+                </a>
+            `;
+        }
+
+        async function verifyPayment() {
+            if (isVerifying) return;
+            if (!orderId) {
+                showError('The payment order ID is missing. Please return to the plans page and try again.');
+                return;
+            }
+            if (!token && !await refreshAccessToken()) {
+                showError('Your session has expired. Please sign in again.');
+                return;
+            }
+
+            isVerifying = true;
+            verificationAttempts += 1;
+            // Show loading
+            statusIcon.className = 'loading-icon';
+            statusIcon.innerHTML = '<i class="fa-solid fa-spinner"></i>';
+            title.textContent = 'Verifying Payment...';
+            message.textContent = 'Please wait while we confirm your payment.';
+            detailsContainer.innerHTML = '';
+            buttonsContainer.innerHTML = '';
+
+            try {
+                const res = await authFetch(`${API_BASE}/api/payment/verify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orderId })
+                });
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.error || 'Verification failed');
+
+                if (data.success && (data.status === 'success' || data.status === 'already_verified')) {
+                    showSuccess({
+                        orderId: orderId,
+                        planName: data.planName,
+                        amount: data.amount,
+                        expiryDate: data.expiryDate
+                    });
+                } else if (data.status === 'pending') {
+                    showPending();
+                    if (verificationAttempts < MAX_AUTOMATIC_RETRIES) {
+                        message.textContent = 'Payment is still processing. Checking again automatically...';
+                        setTimeout(verifyPayment, 3000);
+                    }
+                } else {
+                    showError(data.message || 'Payment not completed. You can try again from the plans page.');
+                }
+            } catch (e) {
+                showError(e.message || 'Verification failed. Please try again later.');
+            } finally {
+                isVerifying = false;
+            }
+        }
+
+        // Start verification
+        verifyPayment();
+    </script>
+</body>
+</html>

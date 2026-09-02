@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification Log</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #000000;
+            --card-bg: #161616;
+            --text-white: #ffffff;
+            --text-grey: #a0a0a0;
+            --border-color: #333;
+            --highlight: #4caf50;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-white);
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .mobile-container {
+            width: 100%; max-width: 600px; background-color: #0a0a0a;
+            height: 100%; display: flex; flex-direction: column;
+            border-left: 1px solid var(--border-color); border-right: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        /* --- Header --- */
+        .header {
+            padding: 15px 20px; background-color: rgba(20, 20, 20, 0.95);
+            border-bottom: 1px solid var(--border-color); backdrop-filter: blur(10px);
+            z-index: 10; flex-shrink: 0;
+        }
+
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .title { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        
+        /* New Header Actions Container */
+        .header-actions { display: flex; align-items: center; gap: 20px; }
+
+        .filters-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; }
+        .filters-scroll::-webkit-scrollbar { display: none; }
+
+        .chip {
+            background: #222; border: 1px solid #444; color: #ccc;
+            padding: 6px 16px; border-radius: 20px; font-size: 13px;
+            white-space: nowrap; cursor: pointer; transition: 0.3s;
+        }
+        .chip.active { background: #ffffff; color: #000000; border-color: #ffffff; font-weight: 600; }
+
+        /* --- List --- */
+        .list-area { flex-grow: 1; overflow-y: auto; padding: 15px; padding-bottom: 80px; }
+        
+        .notif-card {
+            background-color: var(--card-bg); border: 1px solid #2a2a2a;
+            border-radius: 14px; padding: 14px; margin-bottom: 12px;
+            display: flex; align-items: flex-start; gap: 14px;
+            cursor: pointer; transition: transform 0.1s, background 0.2s;
+        }
+        .notif-card:active { transform: scale(0.98); background-color: #252525; }
+
+        .icon-wrapper {
+            width: 45px; height: 45px; 
+            border-radius: 10px; 
+            display: flex;
+            justify-content: center; align-items: center; 
+            flex-shrink: 0;
+            position: relative;
+            background: #222;
+            overflow: hidden;
+        }
+
+        .icon-wrapper img {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+
+        .text-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .top-line { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 3px; }
+        .sender-name { font-size: 15px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65%; }
+        
+        .time-text { font-size: 11px; color: #777; font-weight: 500; text-align: right; max-width: 35%; line-height: 1.2; }
+        
+        .message-body { font-size: 14px; color: #a0a0a0; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+        .badge {
+            background-color: #4caf50; color: #000; font-size: 10px; font-weight: bold;
+            padding: 2px 6px; border-radius: 10px; position: absolute; top: -5px; right: -5px;
+            border: 2px solid #000; z-index: 5;
+        }
+
+        .loading { text-align: center; color: #555; margin-top: 50px; }
+
+        /* --- MODAL --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(5px);
+            z-index: 1000; display: none; justify-content: center; align-items: center; padding: 20px;
+        }
+
+        .modal-box {
+            background: #1e1e1e; width: 100%; max-width: 400px; border-radius: 20px;
+            border: 1px solid #333; padding: 25px; position: relative;
+            display: flex; flex-direction: column; max-height: 80vh;
+            animation: popUp 0.3s ease;
+        }
+
+        @keyframes popUp { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .close-btn {
+            position: absolute; top: 15px; right: 15px; background: #333; color: white;
+            border: none; width: 30px; height: 30px; border-radius: 50%;
+            cursor: pointer; display: flex; justify-content: center; align-items: center;
+        }
+
+        .modal-header { text-align: center; margin-bottom: 15px; flex-shrink: 0; }
+        
+        .modal-icon { width: 60px; height: 60px; margin: 0 auto 10px auto; border-radius: 15px; overflow: hidden; display: flex; justify-content: center; align-items: center; background: #222; }
+        .modal-icon img { width: 100%; height: 100%; object-fit: cover; }
+        .modal-icon i { font-size: 30px; color: #fff; }
+
+        .modal-title { font-size: 18px; font-weight: bold; color: white; }
+        .modal-app { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; margin-top: 5px; color: #aaa; }
+
+        .modal-scroll-area {
+            flex-grow: 1; overflow-y: auto; background: #252525;
+            border-radius: 10px; padding: 10px; border: 1px solid #333;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+
+        .chat-bubble {
+            background: #333; padding: 8px 12px; border-radius: 8px;
+            font-size: 14px; color: #ddd; position: relative;
+        }
+        .chat-time { display: block; font-size: 10px; color: #777; margin-top: 4px; text-align: right; }
+
+    </style>
+</head>
+<body>
+
+    <div class="mobile-container">
+        
+        <div class="header">
+            <div class="header-top">
+                <div class="title">
+                    <i class="fas fa-arrow-left" onclick="history.back()" style="cursor:pointer; margin-right:10px;"></i>
+                    Notifications
+                </div>
+                <div class="header-actions">
+                    <i class="fas fa-trash-alt" onclick="clearAllNotifications()" style="cursor:pointer; color:#ff4444;" title="Clear All"></i>
+                    <i class="fas fa-sync-alt" onclick="fetchData()" style="cursor:pointer; color:#4caf50;" title="Refresh"></i>
+                </div>
+            </div>
+            <div class="filters-scroll">
+                <div class="chip active" onclick="setFilter('all', this)">All</div>
+                <div class="chip" onclick="setFilter('whatsapp', this)">WhatsApp</div>
+                <div class="chip" onclick="setFilter('instagram', this)">Instagram</div>
+                <div class="chip" onclick="setFilter('snapchat', this)">Snapchat</div>
+            </div>
+        </div>
+
+        <div class="list-area" id="notifList">
+            <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+        </div>
+
+    </div>
+
+    <div class="modal-overlay" id="popupModal" onclick="closeModal(event)">
+        <div class="modal-box">
+            <button class="close-btn" onclick="closeModal(event)"><i class="fas fa-times"></i></button>
+            
+            <div class="modal-header">
+                <div class="modal-icon" id="mIcon"></div>
+                <div class="modal-title" id="mTitle"></div>
+                <div class="modal-app" id="mApp"></div>
+            </div>
+
+            <div class="modal-scroll-area" id="mContent">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const deviceId = urlParams.get('id');
+        const API_URL = `https://parents-control-website1.onrender.com/api/get-data/${deviceId}/notifications`;
+        const STORAGE_KEY = `notif_store_${deviceId}`; 
+
+        let allData = [];
+        let currentFilter = 'all';
+
+        // Load saved data and sort immediately
+        function loadFromStorage() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                try {
+                    allData = JSON.parse(stored);
+                    // Force Sort: Newest First
+                    allData.sort((a, b) => b.postTime - a.postTime);
+                    renderList();
+                } catch (e) { console.error("Storage Error", e); }
+            }
+        }
+
+        async function fetchData() {
+            try {
+                if(!deviceId) return;
+                const res = await fetch(API_URL);
+                const rawData = await res.json();
+                
+                // Sort raw data Old->New for safe deduplication
+                rawData.sort((a, b) => a.postTime - b.postTime);
+                const cleanData = [];
+                
+                // Deduplication logic
+                rawData.forEach(item => {
+                    const title = item.title || "";
+                    const text = item.text || "";
+                    const time = item.postTime;
+                    if (cleanData.length > 0) {
+                        const lastItem = cleanData[cleanData.length - 1];
+                        const lastTitle = lastItem.title || "";
+                        const lastText = lastItem.text || "";
+                        const timeDiff = Math.abs(time - lastItem.postTime);
+                        if (title === lastTitle && timeDiff < 5000) {
+                            if (text === lastText) return; 
+                            if (text.includes(lastText) && text.length > lastText.length) return; 
+                        }
+                    }
+                    cleanData.push(item);
+                });
+
+                // Merge with LocalStorage (Persistence)
+                let hasNewData = false;
+                const existingSet = new Set(allData.map(i => `${i.postTime}_${i.title}_${i.text}`));
+
+                cleanData.forEach(newItem => {
+                    const uniqueKey = `${newItem.postTime}_${newItem.title}_${newItem.text}`;
+                    if (!existingSet.has(uniqueKey)) {
+                        allData.push(newItem); 
+                        hasNewData = true;
+                    }
+                });
+
+                if (hasNewData || (allData.length === 0 && cleanData.length > 0)) {
+                    // 🔥 MAIN SORT LOGIC: Naya message upar (b - a)
+                    allData.sort((a, b) => b.postTime - a.postTime);
+                    
+                    // Save to local storage
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
+                    
+                    renderList();
+                }
+
+            } catch (error) { console.error(error); }
+        }
+
+        function renderList() {
+            const container = document.getElementById('notifList');
+            container.innerHTML = "";
+
+            let filteredData = allData;
+            if (currentFilter !== 'all') {
+                filteredData = allData.filter(item => 
+                    (item.appName || "").toLowerCase().includes(currentFilter) ||
+                    (item.packageName || "").toLowerCase().includes(currentFilter)
+                );
+            }
+
+            if (filteredData.length === 0) {
+                container.innerHTML = "<div class='loading'>No notifications found.</div>";
+                return;
+            }
+
+            const displayList = [];
+            const waGroups = {}; 
+
+            filteredData.forEach(item => {
+                const details = getAppDetails(item);
+                const isWA = (item.packageName || "").includes("whatsapp");
+
+                if (isWA) {
+                    const sender = item.title || "Unknown";
+                    if (!waGroups[sender]) {
+                        waGroups[sender] = {
+                            isGroup: true,
+                            title: sender,
+                            messages: [], 
+                            latestTime: item.postTime, // Track latest time for this person
+                            details: details
+                        };
+                        displayList.push(waGroups[sender]);
+                    }
+                    // Update latest time if this message is newer
+                    if (item.postTime > waGroups[sender].latestTime) {
+                        waGroups[sender].latestTime = item.postTime;
+                    }
+                    waGroups[sender].messages.push(item);
+                } else {
+                    displayList.push({
+                        isGroup: false,
+                        ...item,
+                        details: details,
+                        latestTime: item.postTime
+                    });
+                }
+            });
+
+            // 🔥 FINAL DISPLAY SORT: Ensure Top Card is Newest
+            displayList.sort((a, b) => b.latestTime - a.latestTime);
+
+            displayList.forEach(obj => {
+                const card = document.createElement('div');
+                card.className = 'notif-card';
+
+                if (obj.isGroup) {
+                    const msgs = obj.messages; 
+                    // Sort internal messages: Newest first inside modal
+                    msgs.sort((a,b) => b.postTime - a.postTime);
+                    
+                    const count = msgs.length;
+                    const latestMsg = msgs[0]; // First one is newest
+                    const timeStr = formatTime(latestMsg.postTime);
+                    const badgeHtml = count > 1 ? `<span class="badge">${count}</span>` : '';
+
+                    card.innerHTML = `
+                        <div class="icon-wrapper">
+                            ${obj.details.icon}
+                            ${badgeHtml}
+                        </div>
+                        <div class="text-content">
+                            <div class="top-line">
+                                <span class="sender-name">${obj.title}</span>
+                                <span class="time-text">${timeStr}</span>
+                            </div>
+                            <div class="message-body">${latestMsg.text}</div>
+                        </div>
+                    `;
+                    card.onclick = () => openModal(obj.title, obj.details, msgs);
+                } else {
+                    const timeStr = formatTime(obj.postTime);
+                    card.innerHTML = `
+                        <div class="icon-wrapper">
+                            ${obj.details.icon}
+                        </div>
+                        <div class="text-content">
+                            <div class="top-line">
+                                <span class="sender-name">${obj.title || "Notification"}</span>
+                                <span class="time-text">${timeStr}</span>
+                            </div>
+                            <div class="message-body">${obj.text}</div>
+                        </div>
+                    `;
+                    card.onclick = () => openModal(obj.title, obj.details, [obj]);
+                }
+                container.appendChild(card);
+            });
+        }
+
+        function getAppDetails(item) {
+            if (item.icon && item.icon.length > 50) { 
+                return { 
+                    icon: `<img src="data:image/png;base64,${item.icon}" alt="app" />`,
+                    name: getCleanAppName(item.packageName)
+                };
+            }
+            return { 
+                icon: '<i class="fas fa-bell" style="color:#aaa;"></i>', 
+                name: getCleanAppName(item.packageName)
+            };
+        }
+
+        function getCleanAppName(pkg) {
+            if(!pkg) return "App";
+            if(pkg.includes("whatsapp")) return "WhatsApp";
+            if(pkg.includes("instagram")) return "Instagram";
+            if(pkg.includes("facebook")) return "Facebook";
+            if(pkg.includes("snapchat")) return "Snapchat";
+            if(pkg.includes("telegram")) return "Telegram";
+            if(pkg.includes("dialer") || pkg.includes("phone")) return "Phone";
+            return pkg.split('.').pop(); 
+        }
+
+        function formatTime(ms) {
+            if (!ms) return "Now";
+            let d = new Date(parseInt(ms));
+            if (isNaN(d.getTime())) return "Now";
+            const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
+            const timeStr = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute:'2-digit', hour12: false });
+            return `${dateStr} ${timeStr}`;
+        }
+
+        function setFilter(type, btn) {
+            currentFilter = type;
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            renderList();
+        }
+
+        function openModal(title, details, messages) {
+            const modal = document.getElementById('popupModal');
+            document.getElementById('mTitle').innerText = title || "Notification";
+            document.getElementById('mApp').innerText = details.name;
+            
+            document.getElementById('mIcon').innerHTML = details.icon;
+
+            const contentBox = document.getElementById('mContent');
+            contentBox.innerHTML = ""; 
+
+            // Modal mein chat Neeche se Upar dikhani hai (Oldest Top, Newest Bottom)
+            const chatOrder = [...messages].sort((a,b) => a.postTime - b.postTime);
+
+            chatOrder.forEach(msg => {
+                const bubble = document.createElement('div');
+                bubble.className = 'chat-bubble';
+                const t = new Date(parseInt(msg.postTime)).toLocaleString('en-GB', { hour12: false });
+                
+                bubble.innerHTML = `
+                    ${msg.text}
+                    <span class="chat-time">${t}</span>
+                `;
+                contentBox.appendChild(bubble);
+            });
+
+            setTimeout(() => {
+                contentBox.scrollTop = contentBox.scrollHeight;
+            }, 10);
+
+            modal.style.display = 'flex';
+        }
+
+        function closeModal(e) {
+            if (e.target === document.getElementById('popupModal') || e.target.closest('.close-btn')) {
+                document.getElementById('popupModal').style.display = 'none';
+            }
+        }
+
+        // 🔥 New Function: Clear All Notifications
+        function clearAllNotifications() {
+            if (confirm("Are you sure you want to clear all notifications?")) {
+                allData = [];
+                localStorage.removeItem(STORAGE_KEY);
+                renderList();
+            }
+        }
+
+        loadFromStorage();
+        fetchData(); 
+        setInterval(fetchData, 3000);
+
+    </script>
+</body>
+</html>

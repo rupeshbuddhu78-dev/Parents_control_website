@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>File Manager</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* --- THEME VARIABLES --- */
+        :root {
+            /* DEFAULT PINK/LIGHT THEME */
+            --bg-color: #fdf4ff;
+            --bg-gradient: linear-gradient(180deg, #fdf4ff 0%, #eef5ff 100%);
+            --glass-bg: #ffffff;
+            --glass-border: rgba(209, 82, 204, 0.2);
+            --text-main: #333333;
+            --text-sub: #888888;
+            --accent: #d152cc;
+            --card-shadow: 0 6px 18px rgba(0,0,0,0.04);
+            
+            /* Card Icon Colors (Light) */
+            --cam-icon-bg: rgba(255, 68, 119, 0.1);
+            --cam-icon-color: #ff4477;
+            --cam-border-hover: #ff4477;
+            
+            --scr-icon-bg: rgba(0, 150, 255, 0.1);
+            --scr-icon-color: #0088ff;
+            --scr-border-hover: #0088ff;
+        }
+
+        body.dark-mode {
+            /* DARK THEME */
+            --bg-color: #0f0f0f;
+            --bg-gradient: linear-gradient(45deg, #000000, #1a1a1a);
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #ffffff;
+            --text-sub: #888888;
+            --accent: #00f3ff;
+            --card-shadow: none;
+            
+            /* Card Icon Colors (Dark) */
+            --cam-icon-bg: rgba(255, 68, 68, 0.15);
+            --cam-icon-color: #ff4444;
+            --cam-border-hover: #ff4444;
+            
+            --scr-icon-bg: rgba(0, 243, 255, 0.15);
+            --scr-icon-color: #00f3ff;
+            --scr-border-hover: #00f3ff;
+        }
+
+        /* --- GLOBAL STYLES --- */
+        * { box-sizing: border-box; }
+        body { 
+            background-color: var(--bg-color); 
+            background-image: var(--bg-gradient); 
+            color: var(--text-main); 
+            font-family: 'Segoe UI', sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            min-height: 100vh; 
+            transition: background 0.4s ease, color 0.4s ease;
+        }
+
+        /* HEADER */
+        .header { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            margin-bottom: 30px; 
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 15px;
+        }
+        .icon-btn { 
+            background: var(--glass-bg); 
+            border: 1px solid var(--glass-border); 
+            color: var(--accent); 
+            padding: 10px 15px; 
+            border-radius: 12px; 
+            cursor: pointer; 
+            text-decoration: none; 
+            font-size: 1.1rem; 
+            box-shadow: var(--card-shadow);
+            transition: 0.3s;
+        }
+        .icon-btn:active { transform: scale(0.95); }
+        
+        .page-title { 
+            font-size: 1.2rem; 
+            font-weight: bold; 
+            color: var(--accent); 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+        }
+
+        /* MENU GRID */
+        .menu-container {
+            display: grid;
+            grid-template-columns: 1fr; 
+            gap: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* CARD DESIGN */
+        .menu-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--card-shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .menu-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        body.dark-mode .menu-card:hover {
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .card-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            transition: 0.3s;
+        }
+
+        .card-info {
+            flex: 1;
+            margin-left: 20px;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: var(--text-main);
+        }
+
+        .card-desc {
+            font-size: 0.85rem;
+            color: var(--text-sub);
+        }
+
+        .arrow-icon {
+            color: var(--text-sub);
+            font-size: 1.2rem;
+        }
+
+        /* COLORS FOR SPECIFIC CARDS */
+        .card-camera .card-icon {
+            background: var(--cam-icon-bg);
+            color: var(--cam-icon-color);
+        }
+        .card-camera:hover { border-color: var(--cam-border-hover); }
+
+        .card-screen .card-icon {
+            background: var(--scr-icon-bg);
+            color: var(--scr-icon-color);
+        }
+        .card-screen:hover { border-color: var(--scr-border-hover); }
+
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <a href="javascript:history.back()" class="icon-btn"><i class="fa-solid fa-house"></i></a>
+        <div class="page-title">Storage</div>
+        
+        <button class="icon-btn" onclick="toggleTheme()" id="themeBtn">
+            <i class="fa-solid fa-moon"></i>
+        </button> 
+    </div>
+
+    <div class="menu-container">
+
+        <div class="menu-card card-camera" onclick="openFolder(this, 'camera.html')">
+            <div class="card-icon">
+                <i class="fa-solid fa-eye"></i>
+            </div>
+            <div class="card-info">
+                <div class="card-title">Spy Camera</div>
+                <div class="card-desc">Front & Back Camera Photos</div>
+            </div>
+            <div class="arrow-icon"><i class="fa-solid fa-chevron-right"></i></div>
+        </div>
+
+        <div class="menu-card card-screen" onclick="openFolder(this, 'screenshot.html')">
+            <div class="card-icon">
+                <i class="fa-solid fa-mobile-screen"></i>
+            </div>
+            <div class="card-info">
+                <div class="card-title">Screen Records</div>
+                <div class="card-desc">General screenshots</div>
+            </div>
+            <div class="arrow-icon"><i class="fa-solid fa-chevron-right"></i></div>
+        </div>
+        <div class="menu-card card-screen" onclick="openFolder(this, 'screenshot.html?folder=whatsappscreenshot')">
+            <div class="card-icon"><i class="fa-brands fa-whatsapp"></i></div>
+            <div class="card-info"><div class="card-title">WhatsApp Screenshots</div><div class="card-desc">WhatsApp captures</div></div>
+            <div class="arrow-icon"><i class="fa-solid fa-chevron-right"></i></div>
+        </div>
+        <div class="menu-card card-screen" onclick="openFolder(this, 'screenshot.html?folder=instagramscreenshot')">
+            <div class="card-icon"><i class="fa-brands fa-instagram"></i></div>
+            <div class="card-info"><div class="card-title">Instagram Screenshots</div><div class="card-desc">Instagram captures</div></div>
+            <div class="arrow-icon"><i class="fa-solid fa-chevron-right"></i></div>
+        </div>
+        <div class="menu-card card-screen" onclick="openFolder(this, 'screenshot.html?folder=snapscreenshot')">
+            <div class="card-icon"><i class="fa-brands fa-snapchat"></i></div>
+            <div class="card-info"><div class="card-title">Snapchat Screenshots</div><div class="card-desc">Snapchat captures</div></div>
+            <div class="arrow-icon"><i class="fa-solid fa-chevron-right"></i></div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- AUTH CHECK ---
+        (function(){
+            var t = localStorage.getItem("access_token");
+            if(!t){ window.location.href='/login'; return; }
+            try {
+                var u = JSON.parse(localStorage.getItem("user") || "{}");
+                if(!u.email){ window.location.href='/login'; }
+            } catch(e){ window.location.href='/login'; }
+        })();
+
+        // URL se ID nikalne ka logic (Internal use ke liye)
+        const urlParams = new URLSearchParams(window.location.search);
+        const DEVICE_ID = urlParams.get('id') || localStorage.getItem('monitoring_id');
+
+        // ===========================================
+        // 🔥 THEME TOGGLE LOGIC
+        // ===========================================
+        function toggleTheme() {
+            const body = document.body;
+            const themeBtnIcon = document.querySelector('#themeBtn i');
+            
+            body.classList.toggle('dark-mode');
+            
+            if (body.classList.contains('dark-mode')) {
+                themeBtnIcon.classList.replace('fa-moon', 'fa-sun');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                themeBtnIcon.classList.replace('fa-sun', 'fa-moon');
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        // Auto-load saved theme
+        if(localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+            const themeBtnIcon = document.querySelector('#themeBtn i');
+            if (themeBtnIcon) themeBtnIcon.classList.replace('fa-moon', 'fa-sun');
+        }
+
+        // ===========================================
+        // 🔥 FIX: SMOOTH PAGE TRANSITION (NO ID SHOWN)
+        // ===========================================
+        function openFolder(element, pageName) {
+            // Touch animation: Arrow ki jagah spinner aayega 0.4 second ke liye
+            const arrow = element.querySelector('.arrow-icon');
+            arrow.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="color: var(--accent);"></i>';
+            
+            setTimeout(() => {
+                if (DEVICE_ID) {
+                    window.location.href = pageName + (pageName.includes("?") ? "&" : "?") + "id=" + encodeURIComponent(DEVICE_ID);
+                } else {
+                    alert("Device ID nahi mila! Dobara connect karein.");
+                    window.location.href = pageName;
+                }
+            }, 400); 
+        }
+    </script>
+
+</body>
+</html>
